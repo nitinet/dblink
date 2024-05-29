@@ -1,0 +1,28 @@
+{
+  "name": "dblink",
+  "version": "1.0.3",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "eslint": "eslint --fix ./**/*.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@types/lodash-es": "^4.17.12",
+    "dblink-core": "link:../dblink-core",
+    "lodash-es": "^4.17.21",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "@eslint/js": "*",
+    "globals": "*",
+    "typescript-eslint": "*",
+    "eslint-plugin-prettier": "*",
+    "eslint-config-prettier": "*"
+  }
+}
