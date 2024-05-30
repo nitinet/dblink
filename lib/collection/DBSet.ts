@@ -17,7 +17,7 @@ class DBSet {
   /**
    * field name to FieldMapping map
    *
-   * @type {*}
+   * @type {Map<string, model.FieldMapping>}
    */
   fieldMap: Map<string, model.FieldMapping> = new Map();
 
