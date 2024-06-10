@@ -1,8 +1,8 @@
 import * as core from 'dblink-core';
 import 'reflect-metadata';
-import Context from './lib/Context.js';
-import * as collection from './lib/collection/index.js';
-import * as decorators from './lib/decorators/index.js';
-import * as exprBuilder from './lib/exprBuilder/index.js';
+import Context from './src/Context.js';
+import * as collection from './src/collection/index.js';
+import * as decorators from './src/decorators/index.js';
+import * as exprBuilder from './src/exprBuilder/index.js';
 
 export { Context, collection, core, decorators, exprBuilder };
