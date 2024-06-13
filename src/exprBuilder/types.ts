@@ -23,7 +23,8 @@ type IJoinFunc<A, B> = (sourceA: A, sourceB: B) => Expression;
  * @typedef {IWhereFunc}
  * @template T
  */
-type IWhereFunc<T> = (source: T, ...args: unknown[]) => Expression;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type IWhereFunc<T> = (source: T, ...args: any[]) => Expression;
 
 /**
  * Entity Type
@@ -31,7 +32,8 @@ type IWhereFunc<T> = (source: T, ...args: unknown[]) => Expression;
  * @typedef {IEntityType}
  * @template T
  */
-type IEntityType<T> = new (...args: unknown[]) => T;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type IEntityType<T> = new (...args: any[]) => T;
 
 /**
  * Column Type
