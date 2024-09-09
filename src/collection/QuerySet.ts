@@ -104,7 +104,7 @@ class QuerySet<T extends object> extends IQuerySet<T> {
   async list(): Promise<T[]> {
     this.prepareSelectStatement();
     const result = await this.context.executeStatement(this.stat);
-    return result.rows.map(this.transformer);
+    return result.rows.map(this.transformer.bind(this));
   }
 
   /**
@@ -168,11 +168,15 @@ class QuerySet<T extends object> extends IQuerySet<T> {
   async stream(): Promise<Readable> {
     this.prepareSelectStatement();
     const dataStream = await this.context.streamStatement(this.stat);
+    const transformerFunc = this.transformer.bind(this);
 
-    const transformerFunc = (chunk: Record<string, unknown>, encoding: BufferEncoding, callback: TransformCallback) => {
-      callback(null, this.transformer(chunk));
-    };
-    return dataStream.pipe(new Transform({ transform: transformerFunc }));
+    return dataStream.pipe(
+      new Transform({
+        transform: (chunk: Record<string, unknown>, encoding: BufferEncoding, callback: TransformCallback) => {
+          callback(null, transformerFunc(chunk));
+        }
+      })
+    );
   }
 
   /**
