@@ -78,7 +78,7 @@ class SelectQuerySet<T extends object> extends IQuerySet<T> {
     // Get all Columns
     const temp = new this.EntityType();
     const targetKeys = <string[]>Reflect.ownKeys(temp);
-    const fields = this.dbSet.filterFields(targetKeys);
+    const fields = this.dbSet.getFieldMappingsByKeys(targetKeys);
     this.stat.columns = this.getColumnExprs(fields, this.alias ?? undefined);
   }
 
@@ -176,7 +176,7 @@ class SelectQuerySet<T extends object> extends IQuerySet<T> {
    * @returns {Promise<Partial<T>[]>}
    */
   async listPlain(keys: (keyof T)[]): Promise<Partial<T>[]> {
-    const fields = this.dbSet.filterFields(<string[]>keys);
+    const fields = this.dbSet.getFieldMappingsByKeys(<string[]>keys);
     this.stat.columns = this.getColumnExprs(fields, this.alias ?? undefined);
 
     const input = await this.context.executeStatement(this.stat);

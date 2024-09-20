@@ -118,15 +118,14 @@ class TableSet<T extends object> extends IQuerySet<T> {
    *
    * @async
    * @param {T} entity
-   * @returns {Promise<T>}
    */
-  async insert(entity: T): Promise<T> {
+  async insert(entity: T): Promise<void> {
     const stat: sql.Statement = new sql.Statement(sql.types.Command.INSERT);
     stat.collection.value = this.dbSet.tableName;
 
     // Dynamic insert
     const keys: string[] = Reflect.getMetadata(decoratorKeys.TABLE_COLUMN_KEYS, this.EntityType.prototype);
-    const fields = this.dbSet.filterFields(keys);
+    const fields = this.dbSet.getFieldMappingsByKeys(keys);
     fields.forEach(field => {
       const val = Reflect.get(entity, field.fieldName);
       if (val == null) return;
@@ -140,22 +139,57 @@ class TableSet<T extends object> extends IQuerySet<T> {
       stat.values.push(expr);
     });
 
+    await this.context.executeStatement(stat);
+  }
+
+  /**
+   * Insert Object and return synced from database
+   *
+   * @async
+   * @param {T} entity
+   * @returns {Promise<T>}
+   */
+  async insertAndFetch(entity: T): Promise<T> {
+    const stat: sql.Statement = new sql.Statement(sql.types.Command.INSERT);
+    stat.collection.value = this.dbSet.tableName;
+
+    // Dynamic insert
+    const keys: string[] = Reflect.getMetadata(decoratorKeys.TABLE_COLUMN_KEYS, this.EntityType.prototype);
+    const fields = this.dbSet.getFieldMappingsByKeys(keys);
+    fields.forEach(field => {
+      const val = Reflect.get(entity, field.fieldName);
+      if (val == null) return;
+
+      const col = new sql.Collection();
+      col.value = field.colName;
+      stat.columns.push(col);
+
+      const expr = new sql.Expression('?');
+      expr.args.push(val);
+      stat.values.push(expr);
+    });
+
+    this.primaryFields.forEach(field => {
+      stat.returnColumns.push(new sql.Expression(field.colName));
+    });
+
     const result = await this.context.executeStatement(stat);
 
-    let finalObj: T | null = null;
-    if (this.primaryFields.length == 1) {
-      const primaryField = this.primaryFields[0];
-      const id = (result.id ?? Reflect.get(entity, primaryField.fieldName)) as OperandType<T, keyof T>;
-      finalObj = await this.get(id);
-    } else {
-      const idParams: OperandType<T, keyof T>[] = [];
-      this.primaryFields.forEach(field => {
-        idParams.push(Reflect.get(entity, field.fieldName));
+    if (result.id && this.primaryFields.length == 1) {
+      const id = result.id as OperandType<T, keyof T>;
+      return this.getOrThrow(id);
+    } else if (result.rows.length == 1) {
+      const row = result.rows[0];
+      const idParams: OperandType<T, keyof T>[] = this.primaryFields.map(field => {
+        return row[field.colName] as OperandType<T, keyof T>;
       });
-      finalObj = await this.get(...idParams);
+      return this.getOrThrow(...idParams);
+    } else {
+      const idParams: OperandType<T, keyof T>[] = this.primaryFields.map(field => {
+        return Reflect.get(entity, field.fieldName);
+      });
+      return await this.getOrThrow(...idParams);
     }
-    if (!finalObj) throw new Error('Insert Object Not Found');
-    return finalObj;
   }
 
   /**
@@ -172,7 +206,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
 
       // Dynamic insert
       const keys: string[] = Reflect.getMetadata(decoratorKeys.TABLE_COLUMN_KEYS, this.EntityType.prototype);
-      const fields = this.dbSet.filterFields(keys);
+      const fields = this.dbSet.getFieldMappingsByKeys(keys);
       fields.forEach(field => {
         const val = Reflect.get(entity, field.fieldName);
         if (val == null) return;
@@ -226,7 +260,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
 
     // Dynamic update
     const keys: string[] = Reflect.getMetadata(decoratorKeys.TABLE_COLUMN_KEYS, this.EntityType.prototype);
-    let fields = this.dbSet.filterFields(keys).filter(field => !this.primaryFields.some(pri => pri.fieldName == field.fieldName));
+    let fields = this.dbSet.getFieldMappingsByKeys(keys).filter(field => !this.primaryFields.some(pri => pri.fieldName == field.fieldName));
     if (updatedKeys) fields = fields.filter(field => (<(string | symbol)[]>updatedKeys).includes(field.fieldName));
     if (fields.length == 0) throw new Error('Update Fields Empty');
 
@@ -266,7 +300,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
    */
   async updateBulk(entities: T[], ...updatedKeys: (keyof T)[]): Promise<void> {
     const keys: string[] = Reflect.getMetadata(decoratorKeys.TABLE_COLUMN_KEYS, this.EntityType.prototype);
-    let fields = this.dbSet.filterFields(keys).filter(field => !this.primaryFields.some(pri => pri.fieldName == field.fieldName));
+    let fields = this.dbSet.getFieldMappingsByKeys(keys).filter(field => !this.primaryFields.some(pri => pri.fieldName == field.fieldName));
     if (updatedKeys) fields = fields.filter(field => (<(string | symbol)[]>updatedKeys).includes(field.fieldName));
 
     const stmts = entities.map(entity => {
@@ -307,7 +341,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
     if (obj) {
       return this.update(entity);
     } else {
-      return this.insert(entity);
+      return this.insertAndFetch(entity);
     }
   }
 

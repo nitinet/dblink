@@ -37,9 +37,12 @@ class DBSet {
    * @param {(string | symbol)[]} props
    * @returns {model.FieldMapping[]}
    */
-  filterFields(props: (string | symbol)[]): model.FieldMapping[] {
-    const fields = Array.from(this.fieldMap.values());
-    return fields.filter(f => props.includes(f.fieldName));
+  getFieldMappingsByKeys(props: string[]): model.FieldMapping[] {
+    return props
+      .map(a => {
+        return this.fieldMap.get(a);
+      })
+      .filter(a => a != undefined);
   }
 }
 

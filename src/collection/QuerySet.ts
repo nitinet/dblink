@@ -91,7 +91,7 @@ class QuerySet<T extends object> extends IQuerySet<T> {
   prepareSelectStatement() {
     // Get all Columns
     const targetKeys: string[] = Reflect.getMetadata(TABLE_COLUMN_KEYS, this.EntityType.prototype);
-    const fields = this.dbSet.filterFields(targetKeys);
+    const fields = this.dbSet.getFieldMappingsByKeys(targetKeys);
     this.stat.columns = this.getColumnExprs(fields, this.alias);
   }
 
@@ -187,7 +187,7 @@ class QuerySet<T extends object> extends IQuerySet<T> {
    * @returns {Promise<Partial<T>[]>}
    */
   async listPlain(keys: (keyof T)[]): Promise<Partial<T>[]> {
-    const fields = this.dbSet.filterFields(<string[]>keys);
+    const fields = this.dbSet.getFieldMappingsByKeys(<string[]>keys);
     this.stat.columns = this.getColumnExprs(fields, this.alias);
 
     const input = await this.context.executeStatement(this.stat);
@@ -318,7 +318,7 @@ class QuerySet<T extends object> extends IQuerySet<T> {
     // Dynamic update
     const keys: string[] = Reflect.getMetadata(TABLE_COLUMN_KEYS, entity.constructor.prototype);
 
-    const fields = this.dbSet.filterFields(keys).filter(field => (<(string | symbol)[]>updatedKeys).includes(field.fieldName));
+    const fields = this.dbSet.getFieldMappingsByKeys(keys).filter(field => (<(string | symbol)[]>updatedKeys).includes(field.fieldName));
     if (fields.length == 0) throw new Error('Update Fields Empty');
 
     fields.forEach(field => {

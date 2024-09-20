@@ -1,13 +1,16 @@
 class DBSet {
-    tableName;
-    fieldMap = new Map();
-    constructor(tableName) {
-        this.tableName = tableName;
-    }
-    filterFields(props) {
-        const fields = Array.from(this.fieldMap.values());
-        return fields.filter(f => props.includes(f.fieldName));
-    }
+  tableName;
+  fieldMap = new Map();
+  constructor(tableName) {
+    this.tableName = tableName;
+  }
+  getFieldMappingsByKeys(props) {
+    return props
+      .map(a => {
+        return this.fieldMap.get(a);
+      })
+      .filter(a => a != undefined);
+  }
 }
 export default DBSet;
 //# sourceMappingURL=DBSet.js.map
