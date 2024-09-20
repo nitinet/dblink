@@ -1,6 +1,6 @@
 {
   "name": "dblink",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "main": "./index.js",
   "types": "./index.ts",
@@ -17,7 +17,7 @@
   "dependencies": {
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^22.5.5",
-    "dblink-core": "^1.1.0",
+    "dblink-core": "^1.1.1",
     "lodash-es": "^4.17.21",
     "reflect-metadata": "^0.2.2"
   },
