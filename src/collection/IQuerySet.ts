@@ -2,6 +2,7 @@ import * as sql from 'dblink-core/src/sql/index.js';
 import { Readable } from 'stream';
 import Context from '../Context.js';
 import * as exprBuilder from '../exprBuilder/index.js';
+import { IEntityType } from 'dblink-core/src/types.js';
 
 /**
  * IQuerySet
@@ -103,7 +104,7 @@ abstract class IQuerySet<T extends object> {
    * @param {exprBuilder.types.IEntityType<U>} TargetType
    * @returns {IQuerySet<U>}
    */
-  abstract select<U extends object>(TargetType: exprBuilder.types.IEntityType<U>): IQuerySet<U>;
+  abstract select<U extends object>(TargetType: IEntityType<U>): IQuerySet<U>;
 
   /**
    * Function to generate Where clause

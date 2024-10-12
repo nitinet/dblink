@@ -1,4 +1,4 @@
-import { ColumnType, IEntityType } from './types.js';
+import { DataType, IEntityType } from 'dblink-core/src/types';
 
 /**
  * FieldMapping
@@ -24,16 +24,16 @@ class FieldMapping {
   /**
    * Column Type
    *
-   * @type {IEntityType<ColumnType>}
+   * @type {IEntityType<DataType>}
    */
-  columnType: IEntityType<ColumnType>;
+  dataType: IEntityType<DataType>;
 
   /**
    * Is this column Primary Key
    *
    * @type {boolean}
    */
-  primaryKey: boolean = false;
+  primaryKey: boolean;
 
   /**
    * Creates an instance of FieldMapping.
@@ -41,14 +41,14 @@ class FieldMapping {
    * @constructor
    * @param {string} fieldName
    * @param {string} colName
-   * @param {IEntityType<ColumnType>} columnType
+   * @param {IEntityType<DataType>} dataType
    * @param {boolean} primaryKey
    */
-  constructor(fieldName: string, colName: string, columnType: IEntityType<ColumnType>, primaryKey: boolean) {
+  constructor(fieldName: string, colName: string, dataType: IEntityType<DataType>, primaryKey: boolean) {
     this.fieldName = fieldName;
     this.colName = colName;
-    this.columnType = columnType;
-    this.primaryKey = primaryKey;
+    this.dataType = dataType;
+    this.primaryKey = primaryKey ?? false;
   }
 }
 

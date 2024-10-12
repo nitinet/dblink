@@ -28,9 +28,9 @@ class TableSet extends IQuerySet {
   bindDbSetField(dbSet, key) {
     const columnName = Reflect.getMetadata(decoratorKeys.COLUMN_KEY, this.EntityType.prototype, key);
     if (columnName) {
-      const columnType = Reflect.getMetadata('design:type', this.EntityType.prototype, key);
+      const dataType = Reflect.getMetadata('design:type', this.EntityType.prototype, key);
       const primaryKey = Reflect.getMetadata(decoratorKeys.ID_KEY, this.EntityType.prototype, key) === true;
-      const fieldMapping = new model.FieldMapping(key, columnName, columnType, primaryKey);
+      const fieldMapping = new model.FieldMapping(key, columnName, dataType, primaryKey);
       dbSet.fieldMap.set(key, fieldMapping);
       if (primaryKey) this.primaryFields.push(fieldMapping);
     }
@@ -47,10 +47,10 @@ class TableSet extends IQuerySet {
       col.value = field.colName;
       stat.columns.push(col);
       const expr = new sql.Expression('?');
-      expr.args.push(val);
+      expr.args.push(this.context.handler.serializeValue(val, field.dataType));
       stat.values.push(expr);
     });
-    await this.context.executeStatement(stat);
+    await this.context.runStatement(stat);
   }
   async insertAndFetch(entity) {
     const stat = new sql.Statement(sql.types.Command.INSERT);
@@ -64,22 +64,24 @@ class TableSet extends IQuerySet {
       col.value = field.colName;
       stat.columns.push(col);
       const expr = new sql.Expression('?');
-      expr.args.push(val);
+      expr.args.push(this.context.handler.serializeValue(val, field.dataType));
       stat.values.push(expr);
     });
     this.primaryFields.forEach(field => {
       stat.returnColumns.push(new sql.Expression(field.colName));
     });
-    const result = await this.context.executeStatement(stat);
-    if (result.id && this.primaryFields.length == 1) {
-      const id = result.id;
-      return this.getOrThrow(id);
-    } else if (result.rows.length == 1) {
-      const row = result.rows[0];
-      const idParams = this.primaryFields.map(field => {
-        return row[field.colName];
-      });
-      return this.getOrThrow(...idParams);
+    const result = await this.context.runStatement(stat);
+    if (result.rows.length == 1) {
+      if (this.primaryFields.length == 1) {
+        const id = result.rows[0].id;
+        return this.getOrThrow(id);
+      } else {
+        const row = result.rows[0];
+        const idParams = this.primaryFields.map(field => {
+          return row[field.colName];
+        });
+        return this.getOrThrow(...idParams);
+      }
     } else {
       const idParams = this.primaryFields.map(field => {
         return Reflect.get(entity, field.fieldName);
@@ -100,12 +102,12 @@ class TableSet extends IQuerySet {
         col.value = field.colName;
         stat.columns.push(col);
         const expr = new sql.Expression('?');
-        expr.args.push(val);
+        expr.args.push(this.context.handler.serializeValue(val, field.dataType));
         stat.values.push(expr);
       });
       return stat;
     });
-    await this.context.executeStatement(stmts);
+    await this.context.runStatement(stmts);
   }
   whereExpr(entity) {
     if (!this.primaryFields?.length) {
@@ -114,8 +116,8 @@ class TableSet extends IQuerySet {
     const eb = new model.WhereExprBuilder(this.dbSet.fieldMap);
     let expr = new sql.Expression();
     this.primaryFields.forEach(pri => {
-      const temp = Reflect.get(entity, pri.fieldName);
-      expr = expr.add(eb.eq(pri.fieldName, temp));
+      const val = Reflect.get(entity, pri.fieldName);
+      expr = expr.add(eb.eq(pri.fieldName, this.context.handler.serializeValue(val, pri.dataType)));
     });
     return expr;
   }
@@ -130,12 +132,12 @@ class TableSet extends IQuerySet {
       const c1 = new sql.Expression(field.colName);
       const c2 = new sql.Expression('?');
       const val = Reflect.get(entity, field.fieldName);
-      c2.args.push(val);
+      c2.args.push(this.context.handler.serializeValue(val, field.dataType));
       const expr = new sql.Expression(null, sql.types.Operator.Equal, c1, c2);
       stat.columns.push(expr);
     });
     stat.where = this.whereExpr(entity);
-    const result = await this.context.executeStatement(stat);
+    const result = await this.context.runStatement(stat);
     if (result.error) {
       throw new Error(result.error);
     } else {
@@ -159,14 +161,14 @@ class TableSet extends IQuerySet {
         const c1 = new sql.Expression(field.colName);
         const c2 = new sql.Expression('?');
         const val = Reflect.get(entity, field.fieldName);
-        c2.args.push(val);
+        c2.args.push(this.context.handler.serializeValue(val, field.dataType));
         const expr = new sql.Expression(null, sql.types.Operator.Equal, c1, c2);
         stat.columns.push(expr);
       });
       stat.where = this.whereExpr(entity);
       return stat;
     });
-    await this.context.executeStatement(stmts);
+    await this.context.runStatement(stmts);
   }
   async upsert(entity) {
     const idParams = [];
@@ -184,7 +186,7 @@ class TableSet extends IQuerySet {
     const stat = new sql.Statement(sql.types.Command.DELETE);
     stat.collection.value = this.dbSet.tableName;
     stat.where = this.whereExpr(entity);
-    await this.context.executeStatement(stat);
+    await this.context.runStatement(stat);
   }
   async deleteBulk(entities) {
     const stmts = entities.map(entity => {
@@ -193,7 +195,7 @@ class TableSet extends IQuerySet {
       stat.where = this.whereExpr(entity);
       return stat;
     });
-    await this.context.executeStatement(stmts);
+    await this.context.runStatement(stmts);
   }
   async get(...idParams) {
     if (idParams == null) throw new Error('Id parameter cannot be null');
@@ -205,7 +207,7 @@ class TableSet extends IQuerySet {
       return this.where(a => {
         let expr = new sql.Expression();
         this.primaryFields.forEach((pri, idx) => {
-          expr = expr.add(a.eq(pri.fieldName, idParams[idx]));
+          expr = expr.add(a.eq(pri.fieldName, this.context.handler.serializeValue(idParams[idx], pri.dataType)));
         });
         return expr;
       }).single();

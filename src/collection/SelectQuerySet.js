@@ -29,7 +29,7 @@ class SelectQuerySet extends IQuerySet {
   }
   async list() {
     this.prepareSelectStatement();
-    const result = await this.context.executeStatement(this.stat);
+    const result = await this.context.runStatement(this.stat);
     return result.rows.map(this.transformer.bind(this));
   }
   async count() {
@@ -38,7 +38,7 @@ class SelectQuerySet extends IQuerySet {
     countStmt.groupBy.length = 0;
     countStmt.orderBy.length = 0;
     countStmt.limit = new sql.Expression();
-    const countResult = await this.context.executeStatement(countStmt);
+    const countResult = await this.context.runStatement(countStmt);
     return countResult.rows[0]['count'];
   }
   async listAndCount() {
@@ -52,7 +52,7 @@ class SelectQuerySet extends IQuerySet {
       const fieldMapping = this.dbSet.fieldMap.get(key);
       if (fieldMapping) {
         const colName = fieldMapping.colName;
-        const val = row[colName];
+        const val = this.context.handler.deSerializeValue(row[colName], fieldMapping.dataType);
         Reflect.set(obj, key, val);
       } else {
         const field = Reflect.get(obj, key);
@@ -78,7 +78,7 @@ class SelectQuerySet extends IQuerySet {
   async listPlain(keys) {
     const fields = this.dbSet.getFieldMappingsByKeys(keys);
     this.stat.columns = this.getColumnExprs(fields, this.alias ?? undefined);
-    const input = await this.context.executeStatement(this.stat);
+    const input = await this.context.runStatement(this.stat);
     const data = input.rows.map(row => {
       const obj = {};
       fields.forEach(field => {

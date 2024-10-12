@@ -1,9 +1,9 @@
 import { Handler, sql } from 'dblink-core';
 import ResultSet from 'dblink-core/src/model/ResultSet.js';
+import { IEntityType } from 'dblink-core/src/types.js';
 import { cloneDeep } from 'lodash-es';
 import { Readable } from 'node:stream';
 import TableSet from './collection/TableSet.js';
-import * as types from './exprBuilder/types.js';
 import Connection from './model/Connection.js';
 
 /**
@@ -20,7 +20,7 @@ export default class Context {
    * @private
    * @type {!Handler}
    */
-  private _handler!: Handler;
+  readonly handler!: Handler;
 
   /**
    * Database Connection
@@ -36,7 +36,7 @@ export default class Context {
    * @private
    * @type {{ log: (...args: unknown[]) => void }}
    */
-  private logger: { log: (...args: unknown[]) => void };
+  private readonly logger: { log: (...args: unknown[]) => void };
 
   /**
    * Entity Type to TableSet Map
@@ -44,7 +44,7 @@ export default class Context {
    * @public
    * @type {Map<types.IEntityType<object>, TableSet<object>>}
    */
-  public tableSetMap: Map<types.IEntityType<object>, TableSet<object>> = new Map();
+  public tableSetMap: Map<IEntityType<object>, TableSet<object>> = new Map();
 
   /**
    * Creates an instance of Context.
@@ -54,7 +54,7 @@ export default class Context {
    * @param {?{ logger: { log: (...args: unknown[]) => void } }} [optns]
    */
   constructor(handler: Handler, optns?: { logger: { log: (...args: unknown[]) => void } }) {
-    this._handler = handler;
+    this.handler = handler;
     this.logger = optns?.logger || console;
   }
 
@@ -74,7 +74,7 @@ export default class Context {
    * @returns {Promise<void>}
    */
   async init(): Promise<void> {
-    await this._handler.init();
+    await this.handler.init();
 
     Reflect.ownKeys(this).forEach(key => {
       const tableSet = Reflect.get(this, key);
@@ -89,11 +89,11 @@ export default class Context {
    * Run string query
    *
    * @async
-   * @param {(string | sql.Statement | sql.Statement[])} query
+   * @param {string} query
    * @returns {Promise<ResultSet>}
    */
   async run(query: string): Promise<ResultSet> {
-    const conn = this.connection ?? this._handler;
+    const conn = this.connection ?? this.handler;
     return conn.run(query);
   }
 
@@ -104,8 +104,8 @@ export default class Context {
    * @param {(sql.Statement | sql.Statement[])} stmt
    * @returns {Promise<ResultSet>}
    */
-  async executeStatement(stmt: sql.Statement | sql.Statement[]): Promise<ResultSet> {
-    const conn = this.connection ?? this._handler;
+  async runStatement(stmt: sql.Statement | sql.Statement[]): Promise<ResultSet> {
+    const conn = this.connection ?? this.handler;
     return conn.runStatement(stmt);
   }
 
@@ -113,11 +113,11 @@ export default class Context {
    * Strea string query
    *
    * @async
-   * @param {(string | sql.Statement | sql.Statement[])} query
+   * @param {string} query
    * @returns {Promise<Readable>}
    */
   async stream(query: string): Promise<Readable> {
-    const conn = this.connection ?? this._handler;
+    const conn = this.connection ?? this.handler;
     return await conn.stream(query);
   }
 
@@ -129,7 +129,7 @@ export default class Context {
    * @returns {Promise<Readable>}
    */
   async streamStatement(query: sql.Statement | sql.Statement[]): Promise<Readable> {
-    const conn = this.connection ?? this._handler;
+    const conn = this.connection ?? this.handler;
     return await conn.streamStatement(query);
   }
 
@@ -151,8 +151,8 @@ export default class Context {
       }
     });
 
-    const nativeConn = await this._handler.getConnection();
-    res.connection = new Connection(res._handler, nativeConn);
+    const nativeConn = await this.handler.getConnection();
+    res.connection = new Connection(res.handler, nativeConn);
     await res.connection.initTransaction();
     return res;
   }

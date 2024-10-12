@@ -23,24 +23,7 @@ type IJoinFunc<A, B> = (sourceA: A, sourceB: B) => Expression;
  * @typedef {IWhereFunc}
  * @template T
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type IWhereFunc<T> = (source: T, ...args: any[]) => Expression;
-
-/**
- * Entity Type
- *
- * @typedef {IEntityType}
- * @template T
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type IEntityType<T> = new (...args: any[]) => T;
-
-/**
- * Column Type
- *
- * @typedef {ColumnType}
- */
-type ColumnType = boolean | number | bigint | string | Buffer | Date;
+type IWhereFunc<T> = (source: T, ...args: unknown[]) => Expression;
 
 /**
  * Keyof Type
@@ -59,4 +42,4 @@ type KeyOf<T> = keyof T;
  */
 type OperandType<T, K extends keyof T> = T[K] | Expression;
 
-export { ColumnType, IArrFieldFunc, IEntityType, IJoinFunc, IWhereFunc, KeyOf, OperandType };
+export { IArrFieldFunc, IJoinFunc, IWhereFunc, KeyOf, OperandType };

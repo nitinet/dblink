@@ -1,3 +1,4 @@
+import { IEntityType } from 'dblink-core/src/types.js';
 import Context from '../Context.js';
 import LinkSet from '../collection/LinkSet.js';
 import WhereExprBuilder from './WhereExprBuilder.js';
@@ -18,7 +19,7 @@ class LinkObject<T extends object, U extends object> {
    * @private
    * @type {types.IEntityType<T>}
    */
-  private EntityType: types.IEntityType<T>;
+  private readonly EntityType: IEntityType<T>;
 
   /**
    * Foreign Function to bind
@@ -26,7 +27,7 @@ class LinkObject<T extends object, U extends object> {
    * @private
    * @type {types.IJoinFunc<WhereExprBuilder<T>, U>}
    */
-  private foreignFunc: types.IJoinFunc<WhereExprBuilder<T>, U>;
+  private readonly foreignFunc: types.IJoinFunc<WhereExprBuilder<T>, U>;
 
   /**
    * Link Set
@@ -48,10 +49,10 @@ class LinkObject<T extends object, U extends object> {
    * Creates an instance of LinkObject.
    *
    * @constructor
-   * @param {types.IEntityType<T>} EntityType
+   * @param {IEntityType<T>} EntityType
    * @param {types.IJoinFunc<WhereExprBuilder<T>, U>} foreignFunc
    */
-  constructor(EntityType: types.IEntityType<T>, foreignFunc: types.IJoinFunc<WhereExprBuilder<T>, U>) {
+  constructor(EntityType: IEntityType<T>, foreignFunc: types.IJoinFunc<WhereExprBuilder<T>, U>) {
     this.EntityType = EntityType;
     this.foreignFunc = foreignFunc;
   }

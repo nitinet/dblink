@@ -17,7 +17,7 @@ class BaseExprBuilder<T> {
    * @private
    * @type {Map<string | number | symbol, FieldMapping>}
    */
-  private fieldMap: Map<string | number | symbol, FieldMapping>;
+  private readonly fieldMap: Map<string | number | symbol, FieldMapping>;
 
   /**
    * Alias
@@ -25,7 +25,7 @@ class BaseExprBuilder<T> {
    * @private
    * @type {(string | undefined)}
    */
-  private alias: string | undefined;
+  private readonly alias: string | undefined;
 
   /**
    * Creates an instance of BaseExprBuilder.

@@ -2,19 +2,19 @@ import { cloneDeep } from 'lodash-es';
 import TableSet from './collection/TableSet.js';
 import Connection from './model/Connection.js';
 export default class Context {
-  _handler;
+  handler;
   connection = null;
   logger;
   tableSetMap = new Map();
   constructor(handler, optns) {
-    this._handler = handler;
+    this.handler = handler;
     this.logger = optns?.logger || console;
   }
   log(...arg) {
     this.logger.log(...arg);
   }
   async init() {
-    await this._handler.init();
+    await this.handler.init();
     Reflect.ownKeys(this).forEach(key => {
       const tableSet = Reflect.get(this, key);
       if (!(tableSet instanceof TableSet)) return;
@@ -23,19 +23,19 @@ export default class Context {
     });
   }
   async run(query) {
-    const conn = this.connection ?? this._handler;
+    const conn = this.connection ?? this.handler;
     return conn.run(query);
   }
-  async executeStatement(stmt) {
-    const conn = this.connection ?? this._handler;
+  async runStatement(stmt) {
+    const conn = this.connection ?? this.handler;
     return conn.runStatement(stmt);
   }
   async stream(query) {
-    const conn = this.connection ?? this._handler;
+    const conn = this.connection ?? this.handler;
     return await conn.stream(query);
   }
   async streamStatement(query) {
-    const conn = this.connection ?? this._handler;
+    const conn = this.connection ?? this.handler;
     return await conn.streamStatement(query);
   }
   async initTransaction() {
@@ -47,8 +47,8 @@ export default class Context {
         prop.context = res;
       }
     });
-    const nativeConn = await this._handler.getConnection();
-    res.connection = new Connection(res._handler, nativeConn);
+    const nativeConn = await this.handler.getConnection();
+    res.connection = new Connection(res.handler, nativeConn);
     await res.connection.initTransaction();
     return res;
   }

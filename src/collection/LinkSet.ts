@@ -1,3 +1,4 @@
+import { IEntityType } from 'dblink-core/src/types.js';
 import Context from '../Context.js';
 import WhereExprBuilder from '../exprBuilder/WhereExprBuilder.js';
 import * as exprBuilder from '../exprBuilder/index.js';
@@ -20,7 +21,7 @@ class LinkSet<T extends object, U extends object> extends QuerySet<T> {
    * @private
    * @type {exprBuilder.types.IJoinFunc<WhereExprBuilder<T>, U>}
    */
-  private foreignFunc: exprBuilder.types.IJoinFunc<WhereExprBuilder<T>, U>;
+  private readonly foreignFunc: exprBuilder.types.IJoinFunc<WhereExprBuilder<T>, U>;
 
   /**
    * Creates an instance of LinkSet.
@@ -31,7 +32,7 @@ class LinkSet<T extends object, U extends object> extends QuerySet<T> {
    * @param {DBSet} dbSet
    * @param {exprBuilder.types.IJoinFunc<WhereExprBuilder<T>, U>} foreignFunc
    */
-  constructor(context: Context, entityType: exprBuilder.types.IEntityType<T>, dbSet: DBSet, foreignFunc: exprBuilder.types.IJoinFunc<WhereExprBuilder<T>, U>) {
+  constructor(context: Context, entityType: IEntityType<T>, dbSet: DBSet, foreignFunc: exprBuilder.types.IJoinFunc<WhereExprBuilder<T>, U>) {
     super(context, entityType, dbSet);
     this.foreignFunc = foreignFunc;
   }

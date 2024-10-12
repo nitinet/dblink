@@ -17,7 +17,7 @@ export default class Connection {
    * @private
    * @type {Handler}
    */
-  private handler: Handler;
+  private readonly handler: Handler;
 
   /**
    * Database Connection

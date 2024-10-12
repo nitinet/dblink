@@ -1,4 +1,5 @@
 import * as sql from 'dblink-core/src/sql/index.js';
+import { IEntityType } from 'dblink-core/src/types.js';
 import { Readable } from 'node:stream';
 import * as decoratorKeys from '../decorators/Constants.js';
 import * as model from '../exprBuilder/index.js';
@@ -24,7 +25,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
    * @protected
    * @type {types.IEntityType<T>}
    */
-  protected EntityType: types.IEntityType<T>;
+  protected EntityType: IEntityType<T>;
 
   /**
    * Db Set linked to database table
@@ -39,7 +40,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
    * @private
    * @type {model.FieldMapping[]}
    */
-  private primaryFields: model.FieldMapping[] = [];
+  private readonly primaryFields: model.FieldMapping[] = [];
 
   /**
    * Creates an instance of TableSet.
@@ -47,7 +48,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
    * @constructor
    * @param {types.IEntityType<T>} EntityType
    */
-  constructor(EntityType: types.IEntityType<T>) {
+  constructor(EntityType: IEntityType<T>) {
     super();
     this.EntityType = EntityType;
     this.dbSet = this.createDbSet();
@@ -58,7 +59,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
    *
    * @returns {types.IEntityType<T>}
    */
-  getEntityType(): types.IEntityType<T> {
+  getEntityType(): IEntityType<T> {
     return this.EntityType;
   }
 
@@ -103,10 +104,10 @@ class TableSet<T extends object> extends IQuerySet<T> {
   private bindDbSetField(dbSet: DBSet, key: string) {
     const columnName: string | null = Reflect.getMetadata(decoratorKeys.COLUMN_KEY, this.EntityType.prototype, key);
     if (columnName) {
-      const columnType = Reflect.getMetadata('design:type', this.EntityType.prototype, key);
+      const dataType = Reflect.getMetadata('design:type', this.EntityType.prototype, key);
       const primaryKey = Reflect.getMetadata(decoratorKeys.ID_KEY, this.EntityType.prototype, key) === true;
 
-      const fieldMapping = new model.FieldMapping(key, columnName, columnType, primaryKey);
+      const fieldMapping = new model.FieldMapping(key, columnName, dataType, primaryKey);
       dbSet.fieldMap.set(key, fieldMapping);
 
       if (primaryKey) this.primaryFields.push(fieldMapping);
@@ -135,11 +136,11 @@ class TableSet<T extends object> extends IQuerySet<T> {
       stat.columns.push(col);
 
       const expr = new sql.Expression('?');
-      expr.args.push(val);
+      expr.args.push(this.context.handler.serializeValue(val, field.dataType));
       stat.values.push(expr);
     });
 
-    await this.context.executeStatement(stat);
+    await this.context.runStatement(stat);
   }
 
   /**
@@ -165,7 +166,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
       stat.columns.push(col);
 
       const expr = new sql.Expression('?');
-      expr.args.push(val);
+      expr.args.push(this.context.handler.serializeValue(val, field.dataType));
       stat.values.push(expr);
     });
 
@@ -173,17 +174,19 @@ class TableSet<T extends object> extends IQuerySet<T> {
       stat.returnColumns.push(new sql.Expression(field.colName));
     });
 
-    const result = await this.context.executeStatement(stat);
+    const result = await this.context.runStatement(stat);
 
-    if (result.id && this.primaryFields.length == 1) {
-      const id = result.id as OperandType<T, keyof T>;
-      return this.getOrThrow(id);
-    } else if (result.rows.length == 1) {
-      const row = result.rows[0];
-      const idParams: OperandType<T, keyof T>[] = this.primaryFields.map(field => {
-        return row[field.colName] as OperandType<T, keyof T>;
-      });
-      return this.getOrThrow(...idParams);
+    if (result.rows.length == 1) {
+      if (this.primaryFields.length == 1) {
+        const id = result.rows[0].id as OperandType<T, keyof T>;
+        return this.getOrThrow(id);
+      } else {
+        const row = result.rows[0];
+        const idParams: OperandType<T, keyof T>[] = this.primaryFields.map(field => {
+          return row[field.colName] as OperandType<T, keyof T>;
+        });
+        return this.getOrThrow(...idParams);
+      }
     } else {
       const idParams: OperandType<T, keyof T>[] = this.primaryFields.map(field => {
         return Reflect.get(entity, field.fieldName);
@@ -216,13 +219,13 @@ class TableSet<T extends object> extends IQuerySet<T> {
         stat.columns.push(col);
 
         const expr = new sql.Expression('?');
-        expr.args.push(val);
+        expr.args.push(this.context.handler.serializeValue(val, field.dataType));
         stat.values.push(expr);
       });
       return stat;
     });
 
-    await this.context.executeStatement(stmts);
+    await this.context.runStatement(stmts);
   }
 
   /**
@@ -240,8 +243,8 @@ class TableSet<T extends object> extends IQuerySet<T> {
     const eb = new model.WhereExprBuilder<T>(this.dbSet.fieldMap);
     let expr = new sql.Expression();
     this.primaryFields.forEach(pri => {
-      const temp = Reflect.get(entity, pri.fieldName);
-      expr = expr.add(eb.eq(<types.KeyOf<T>>pri.fieldName, temp));
+      const val = Reflect.get(entity, pri.fieldName);
+      expr = expr.add(eb.eq(<types.KeyOf<T>>pri.fieldName, this.context.handler.serializeValue(val, pri.dataType) as OperandType<T, keyof T>));
     });
     return expr;
   }
@@ -268,7 +271,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
       const c1 = new sql.Expression(field.colName);
       const c2 = new sql.Expression('?');
       const val = Reflect.get(entity, field.fieldName);
-      c2.args.push(val);
+      c2.args.push(this.context.handler.serializeValue(val, field.dataType));
 
       const expr = new sql.Expression(null, sql.types.Operator.Equal, c1, c2);
       stat.columns.push(expr);
@@ -276,7 +279,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
 
     stat.where = this.whereExpr(entity);
 
-    const result = await this.context.executeStatement(stat);
+    const result = await this.context.runStatement(stat);
     if (result.error) {
       throw new Error(result.error);
     } else {
@@ -311,7 +314,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
         const c1 = new sql.Expression(field.colName);
         const c2 = new sql.Expression('?');
         const val = Reflect.get(entity, field.fieldName);
-        c2.args.push(val);
+        c2.args.push(this.context.handler.serializeValue(val, field.dataType));
 
         const expr = new sql.Expression(null, sql.types.Operator.Equal, c1, c2);
         stat.columns.push(expr);
@@ -321,7 +324,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
       return stat;
     });
 
-    await this.context.executeStatement(stmts);
+    await this.context.runStatement(stmts);
   }
 
   /**
@@ -357,7 +360,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
     stat.collection.value = this.dbSet.tableName;
 
     stat.where = this.whereExpr(entity);
-    await this.context.executeStatement(stat);
+    await this.context.runStatement(stat);
   }
 
   /**
@@ -375,7 +378,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
       stat.where = this.whereExpr(entity);
       return stat;
     });
-    await this.context.executeStatement(stmts);
+    await this.context.runStatement(stmts);
   }
 
   /**
@@ -396,7 +399,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
       return this.where(a => {
         let expr = new sql.Expression();
         this.primaryFields.forEach((pri, idx) => {
-          expr = expr.add(a.eq(<types.KeyOf<T>>pri.fieldName, idParams[idx]));
+          expr = expr.add(a.eq(<types.KeyOf<T>>pri.fieldName, this.context.handler.serializeValue(idParams[idx], pri.dataType) as OperandType<T, keyof T>));
         });
         return expr;
       }).single();
@@ -531,7 +534,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
    * @param {types.IEntityType<U>} EntityType
    * @returns {SelectQuerySet<U>}
    */
-  select<U extends object>(EntityType: types.IEntityType<U>): SelectQuerySet<U> {
+  select<U extends object>(EntityType: IEntityType<U>): SelectQuerySet<U> {
     const res = new SelectQuerySet(this.context, EntityType, this.dbSet);
     return res;
   }

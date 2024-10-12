@@ -1,13 +1,13 @@
 class FieldMapping {
   fieldName;
   colName;
-  columnType;
-  primaryKey = false;
-  constructor(fieldName, colName, columnType, primaryKey) {
+  dataType;
+  primaryKey;
+  constructor(fieldName, colName, dataType, primaryKey) {
     this.fieldName = fieldName;
     this.colName = colName;
-    this.columnType = columnType;
-    this.primaryKey = primaryKey;
+    this.dataType = dataType;
+    this.primaryKey = primaryKey ?? false;
   }
 }
 export default FieldMapping;

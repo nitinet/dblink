@@ -1,4 +1,5 @@
 import * as sql from 'dblink-core/src/sql/index.js';
+import { IEntityType } from 'dblink-core/src/types.js';
 import * as lodash from 'lodash-es';
 import { Readable, Transform, TransformCallback } from 'node:stream';
 import Context from '../Context.js';
@@ -22,9 +23,9 @@ class SelectQuerySet<T extends object> extends IQuerySet<T> {
    * Entity Type
    *
    * @protected
-   * @type {exprBuilder.types.IEntityType<T>}
+   * @type {IEntityType<T>}
    */
-  protected EntityType: exprBuilder.types.IEntityType<T>;
+  protected EntityType: IEntityType<T>;
 
   /**
    * Alias
@@ -52,10 +53,10 @@ class SelectQuerySet<T extends object> extends IQuerySet<T> {
    *
    * @constructor
    * @param {Context} context
-   * @param {exprBuilder.types.IEntityType<T>} EntityType
+   * @param {IEntityType<T>} EntityType
    * @param {DBSet} dbSet
    */
-  constructor(context: Context, EntityType: exprBuilder.types.IEntityType<T>, dbSet: DBSet) {
+  constructor(context: Context, EntityType: IEntityType<T>, dbSet: DBSet) {
     super();
 
     this.context = context;
@@ -90,7 +91,7 @@ class SelectQuerySet<T extends object> extends IQuerySet<T> {
    */
   async list(): Promise<T[]> {
     this.prepareSelectStatement();
-    const result = await this.context.executeStatement(this.stat);
+    const result = await this.context.runStatement(this.stat);
     return result.rows.map(this.transformer.bind(this));
   }
 
@@ -106,7 +107,7 @@ class SelectQuerySet<T extends object> extends IQuerySet<T> {
     countStmt.groupBy.length = 0;
     countStmt.orderBy.length = 0;
     countStmt.limit = new sql.Expression();
-    const countResult = await this.context.executeStatement(countStmt);
+    const countResult = await this.context.runStatement(countStmt);
     return countResult.rows[0]['count'] as number;
   }
 
@@ -135,7 +136,7 @@ class SelectQuerySet<T extends object> extends IQuerySet<T> {
       const fieldMapping = this.dbSet.fieldMap.get(key);
       if (fieldMapping) {
         const colName = fieldMapping.colName;
-        const val = row[colName];
+        const val = this.context.handler.deSerializeValue(row[colName], fieldMapping.dataType);
         Reflect.set(obj, key, val);
       } else {
         const field = Reflect.get(obj, key);
@@ -179,7 +180,7 @@ class SelectQuerySet<T extends object> extends IQuerySet<T> {
     const fields = this.dbSet.getFieldMappingsByKeys(<string[]>keys);
     this.stat.columns = this.getColumnExprs(fields, this.alias ?? undefined);
 
-    const input = await this.context.executeStatement(this.stat);
+    const input = await this.context.runStatement(this.stat);
     const data = input.rows.map(row => {
       const obj: Partial<T> = {};
       fields.forEach(field => {
@@ -211,10 +212,10 @@ class SelectQuerySet<T extends object> extends IQuerySet<T> {
    * Get Queryable Select object with custom Type
    *
    * @template {Object} U
-   * @param {exprBuilder.types.IEntityType<U>} EntityType
+   * @param {IEntityType<U>} EntityType
    * @returns {IQuerySet<U>}
    */
-  select<U extends object>(EntityType: exprBuilder.types.IEntityType<U>): IQuerySet<U> {
+  select<U extends object>(EntityType: IEntityType<U>): IQuerySet<U> {
     const keys = Reflect.ownKeys(new this.EntityType());
     const cols = Array.from(this.dbSet.fieldMap.entries()).filter(a => keys.includes(a[0]));
 
