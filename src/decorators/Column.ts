@@ -1,5 +1,5 @@
 import { Expose } from 'class-transformer';
-import { TABLE_COLUMN_KEYS } from './Constants.js';
+import { COLUMN_KEY, TABLE_COLUMN_KEYS } from './Constants.js';
 
 /**
  * Column Decorator
@@ -16,7 +16,7 @@ function Column(name?: string): (target: object, property: string) => void {
     columnVals.push(property);
     Reflect.defineMetadata(TABLE_COLUMN_KEYS, columnVals, target);
 
-    // Reflect.defineMetadata(COLUMN_KEY, val, target, property);
+    Reflect.defineMetadata(COLUMN_KEY, val, target, property);
 
     return Expose({ name: val })(target, property);
   };
