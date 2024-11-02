@@ -54,7 +54,7 @@ class SelectQuerySet extends IQuerySet {
                 row[key] = row[fieldMapping.colName];
             }
         });
-        const obj = plainToInstance(this.EntityType, row, { enableImplicitConversion: true });
+        const obj = plainToInstance(this.EntityType, row, { enableImplicitConversion: true, excludeExtraneousValues: true });
         this.selectKeys.forEach(key => {
             const field = Reflect.get(obj, key);
             if (field instanceof exprBuilder.LinkObject || field instanceof exprBuilder.LinkArray) {

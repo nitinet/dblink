@@ -9,7 +9,7 @@ function Column(name) {
         columnVals.push(property);
         Reflect.defineMetadata(TABLE_COLUMN_KEYS, columnVals, target);
         Reflect.defineMetadata(COLUMN_KEY, val, target, property);
-        return Expose({ name: val })(target, property);
+        return Expose()(target, property);
     };
 }
 export default Column;

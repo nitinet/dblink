@@ -18,7 +18,7 @@ function Column(name?: string): (target: object, property: string) => void {
 
     Reflect.defineMetadata(COLUMN_KEY, val, target, property);
 
-    return Expose({ name: val })(target, property);
+    return Expose()(target, property);
   };
 }
 
