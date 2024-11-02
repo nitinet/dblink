@@ -4,6 +4,7 @@ import { Transform } from 'node:stream';
 import * as exprBuilder from '../exprBuilder/index.js';
 import DBSet from './DBSet.js';
 import IQuerySet from './IQuerySet.js';
+import { plainToInstance } from 'class-transformer';
 class SelectQuerySet extends IQuerySet {
   dbSet;
   EntityType;
@@ -47,18 +48,11 @@ class SelectQuerySet extends IQuerySet {
     return { count, values };
   }
   transformer(row) {
-    const obj = new this.EntityType();
+    const obj = plainToInstance(this.EntityType, row, { enableImplicitConversion: true });
     this.selectKeys.forEach(key => {
-      const fieldMapping = this.dbSet.fieldMap.get(key);
-      if (fieldMapping) {
-        const colName = fieldMapping.colName;
-        const val = this.context.handler.deSerializeValue(row[colName], fieldMapping.dataType);
-        Reflect.set(obj, key, val);
-      } else {
-        const field = Reflect.get(obj, key);
-        if (field instanceof exprBuilder.LinkObject || field instanceof exprBuilder.LinkArray) {
-          field.bind(this.context, obj);
-        }
+      const field = Reflect.get(obj, key);
+      if (field instanceof exprBuilder.LinkObject || field instanceof exprBuilder.LinkArray) {
+        field.bind(this.context, obj);
       }
     });
     return obj;

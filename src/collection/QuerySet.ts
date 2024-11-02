@@ -1,3 +1,4 @@
+import { plainToInstance } from 'class-transformer';
 import * as sql from 'dblink-core/src/sql/index.js';
 import { IEntityType } from 'dblink-core/src/types.js';
 import * as lodash from 'lodash-es';
@@ -143,18 +144,11 @@ class QuerySet<T extends object> extends IQuerySet<T> {
    * @returns {T}
    */
   transformer(row: Record<string, unknown>): T {
-    const obj = new this.EntityType();
+    const obj = plainToInstance(this.EntityType, row, { enableImplicitConversion: true });
     this.selectKeys.forEach(key => {
-      const fieldMapping = this.dbSet.fieldMap.get(key);
-      if (fieldMapping) {
-        const colName = fieldMapping.colName;
-        const val = this.context.handler.deSerializeValue(row[colName], fieldMapping.dataType);
-        Reflect.set(obj, key, val);
-      } else {
-        const field = Reflect.get(obj, key);
-        if (field instanceof exprBuilder.LinkObject || field instanceof exprBuilder.LinkArray) {
-          field.bind(this.context, obj);
-        }
+      const field = Reflect.get(obj, key);
+      if (field instanceof exprBuilder.LinkObject || field instanceof exprBuilder.LinkArray) {
+        field.bind(this.context, obj);
       }
     });
     return obj;
