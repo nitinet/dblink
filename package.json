@@ -2,10 +2,10 @@
   "name": "dblink",
   "version": "1.2.2",
   "type": "module",
-  "main": "./index.js",
-  "types": "./index.ts",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "build": "run-s tsc prettier eslint",
     "tsc": "tsc",
     "eslint": "eslint --fix ./src/**/*.ts",
@@ -24,9 +24,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
-    "eslint-config-prettier": "^9.1.0",
+    "eslint-config-prettier": "^10.1.2",
     "eslint-plugin-prettier": "^5.2.1",
-    "globals": "^15.12.0",
+    "globals": "^16.0.0",
+    "npm-run-all": "^4.1.5",
     "typescript-eslint": "^8.16.0"
   }
 }
