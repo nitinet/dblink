@@ -97,7 +97,7 @@ class QuerySet extends IQuerySet {
         return res;
     }
     where(param, ...args) {
-        const fieldMap = new Map(Array.from(this.dbSet.fieldMap));
+        const fieldMap = new Map(Array.from(this.dbSet.fieldMap.entries()));
         const eb = new exprBuilder.WhereExprBuilder(fieldMap);
         const res = param(eb, args);
         if (res && res instanceof sql.Expression && res.exps.length > 0) {
@@ -106,7 +106,7 @@ class QuerySet extends IQuerySet {
         return this;
     }
     groupBy(param) {
-        const fieldMap = new Map(Array.from(this.dbSet.fieldMap));
+        const fieldMap = new Map(Array.from(this.dbSet.fieldMap.entries()));
         const eb = new exprBuilder.GroupExprBuilder(fieldMap);
         const res = param(eb);
         if (res && Array.isArray(res)) {
@@ -119,7 +119,7 @@ class QuerySet extends IQuerySet {
         return this;
     }
     orderBy(param) {
-        const fieldMap = new Map(Array.from(this.dbSet.fieldMap));
+        const fieldMap = new Map(Array.from(this.dbSet.fieldMap.entries()));
         const eb = new exprBuilder.OrderExprBuilder(fieldMap);
         const res = param(eb);
         if (res && Array.isArray(res)) {

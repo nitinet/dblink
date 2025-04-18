@@ -2,7 +2,7 @@ import * as sql from 'dblink-core/src/sql/index.js';
 import { IEntityType } from 'dblink-core/src/types.js';
 import { Readable } from 'node:stream';
 import * as decoratorKeys from '../decorators/Constants.js';
-import * as model from '../exprBuilder/index.js';
+import * as exprBuilder from '../exprBuilder/index.js';
 import * as types from '../exprBuilder/types.js';
 import { OperandType } from '../exprBuilder/types.js';
 import DBSet from './DBSet.js';
@@ -38,9 +38,9 @@ class TableSet<T extends object> extends IQuerySet<T> {
    * Primary key fields
    *
    * @private
-   * @type {model.FieldMapping[]}
+   * @type {exprBuilder.FieldMapping[]}
    */
-  private readonly primaryFields: model.FieldMapping[] = [];
+  private readonly primaryFields: exprBuilder.FieldMapping[] = [];
 
   /**
    * Creates an instance of TableSet.
@@ -69,7 +69,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
   // 	let keys: string[] = Reflect.getMetadata(TABLE_COLUMN_KEYS, this.EntityType.prototype);
   // 	keys.forEach(key => {
   // 		let field = Reflect.get(obj, key);
-  // 		if (field instanceof model.LinkObject || field instanceof model.LinkArray) {
+  // 		if (field instanceof exprBuilder.LinkObject || field instanceof exprBuilder.LinkArray) {
   // 			field.bind(this.context, obj);
   // 		}
   // 	});
@@ -107,7 +107,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
       const dataType = Reflect.getMetadata('design:type', this.EntityType.prototype, key);
       const primaryKey = Reflect.getMetadata(decoratorKeys.ID_KEY, this.EntityType.prototype, key) === true;
 
-      const fieldMapping = new model.FieldMapping(key, columnName, dataType, primaryKey);
+      const fieldMapping = new exprBuilder.FieldMapping(key, columnName, dataType, primaryKey);
       dbSet.fieldMap.set(key, fieldMapping);
 
       if (primaryKey) this.primaryFields.push(fieldMapping);
@@ -240,7 +240,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
       throw new Error('Primary Key fields not found');
     }
 
-    const eb = new model.WhereExprBuilder<T>(this.dbSet.fieldMap);
+    const eb = new exprBuilder.WhereExprBuilder<T>(this.dbSet.fieldMap);
     let expr = new sql.Expression();
     this.primaryFields.forEach(pri => {
       const val = Reflect.get(entity, pri.fieldName);
@@ -422,11 +422,11 @@ class TableSet<T extends object> extends IQuerySet<T> {
   /**
    * Function to generate Where clause
    *
-   * @param {types.IWhereFunc<model.WhereExprBuilder<T>>} param
+   * @param {types.IWhereFunc<exprBuilder.WhereExprBuilder<T>>} param
    * @param {...any[]} args
    * @returns {QuerySet<T>}
    */
-  where(param: types.IWhereFunc<model.WhereExprBuilder<T>>, ...args: unknown[]): QuerySet<T> {
+  where(param: types.IWhereFunc<exprBuilder.WhereExprBuilder<T>>, ...args: unknown[]): QuerySet<T> {
     const q = new QuerySet(this.context, this.EntityType, this.dbSet);
     return q.where(param, args);
   }
@@ -434,10 +434,10 @@ class TableSet<T extends object> extends IQuerySet<T> {
   /**
    * Function to generate Group By clause
    *
-   * @param {types.IArrFieldFunc<model.GroupExprBuilder<T>>} func
+   * @param {types.IArrFieldFunc<exprBuilder.GroupExprBuilder<T>>} func
    * @returns {QuerySet<T>}
    */
-  groupBy(func: types.IArrFieldFunc<model.GroupExprBuilder<T>>): QuerySet<T> {
+  groupBy(func: types.IArrFieldFunc<exprBuilder.GroupExprBuilder<T>>): QuerySet<T> {
     const q = new QuerySet(this.context, this.EntityType, this.dbSet);
     return q.groupBy(func);
   }
@@ -445,10 +445,10 @@ class TableSet<T extends object> extends IQuerySet<T> {
   /**
    * Function to generate Order By clause
    *
-   * @param {types.IArrFieldFunc<model.OrderExprBuilder<T>>} func
+   * @param {types.IArrFieldFunc<exprBuilder.OrderExprBuilder<T>>} func
    * @returns {QuerySet<T>}
    */
-  orderBy(func: types.IArrFieldFunc<model.OrderExprBuilder<T>>): QuerySet<T> {
+  orderBy(func: types.IArrFieldFunc<exprBuilder.OrderExprBuilder<T>>): QuerySet<T> {
     const q = new QuerySet(this.context, this.EntityType, this.dbSet);
     return q.orderBy(func);
   }
@@ -538,11 +538,6 @@ class TableSet<T extends object> extends IQuerySet<T> {
     const res = new SelectQuerySet(this.context, EntityType, this.dbSet);
     return res;
   }
-
-  // join<A extends Object>(coll: IQuerySet<A>, param: types.IJoinFunc<model.WhereExprBuilder<T>, model.GroupExprBuilder<A>>, joinType?: sql.types.Join) {
-  // 	let q = new QuerySet(this.context, this.dbSet);
-  // 	return q.join(coll, param, joinType);
-  // }
 }
 
 export default TableSet;

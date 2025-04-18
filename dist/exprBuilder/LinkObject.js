@@ -11,7 +11,7 @@ class LinkObject {
     bind(context, parentObj) {
         const tableSet = context.tableSetMap.get(this.EntityType);
         if (!tableSet)
-            throw TypeError('Invalid Type');
+            throw new TypeError('Invalid Type');
         this.linkSet = new LinkSet(context, this.EntityType, tableSet.dbSet, this.foreignFunc);
         this.linkSet.apply(parentObj);
     }

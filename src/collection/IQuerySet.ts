@@ -144,24 +144,6 @@ abstract class IQuerySet<T extends object> {
    */
   abstract limit(size: number, index?: number): IQuerySet<T>;
 
-  // abstract join<A extends Object>(collection: IQuerySet<A>, func: types.IJoinFunc<model.WhereExprBuilder<T>, model.GroupExprBuilder<A>>, joinType?: sql.types.Join): IQuerySet<T & A>;
-
-  // innerJoin<A extends Object>(coll: IQuerySet<A>, param: types.IJoinFunc<model.WhereExprBuilder<T>, model.GroupExprBuilder<A>>): IQuerySet<T & A> {
-  // 	return this.join(coll, param, sql.types.Join.InnerJoin);
-  // }
-
-  // leftJoin<A extends Object>(coll: IQuerySet<A>, param: types.IJoinFunc<model.WhereExprBuilder<T>, model.GroupExprBuilder<A>>): IQuerySet<T & A> {
-  // 	return this.join(coll, param, sql.types.Join.LeftJoin);
-  // }
-
-  // rightJoin<A extends Object>(coll: IQuerySet<A>, param: types.IJoinFunc<model.WhereExprBuilder<T>, model.GroupExprBuilder<A>>): IQuerySet<T & A> {
-  // 	return this.join(coll, param, sql.types.Join.RightJoin);
-  // }
-
-  // outerJoin<A extends Object>(coll: IQuerySet<A>, param: types.IJoinFunc<model.WhereExprBuilder<T>, model.GroupExprBuilder<A>>): IQuerySet<T & A> {
-  // 	return this.join(coll, param, sql.types.Join.OuterJoin);
-  // }
-
   // Util function
   /**
    * Get Column Expressions

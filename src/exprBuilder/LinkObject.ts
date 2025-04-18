@@ -65,7 +65,7 @@ class LinkObject<T extends object, U extends object> {
    */
   bind(context: Context, parentObj: U) {
     const tableSet = context.tableSetMap.get(this.EntityType);
-    if (!tableSet) throw TypeError('Invalid Type');
+    if (!tableSet) throw new TypeError('Invalid Type');
 
     this.linkSet = new LinkSet<T, U>(context, this.EntityType, tableSet.dbSet, this.foreignFunc);
     this.linkSet.apply(parentObj);

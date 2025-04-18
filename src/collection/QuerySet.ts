@@ -240,7 +240,7 @@ class QuerySet<T extends object> extends IQuerySet<T> {
    * @returns {this}
    */
   where(param: exprBuilder.types.IWhereFunc<exprBuilder.WhereExprBuilder<T>>, ...args: unknown[]): this {
-    const fieldMap = new Map(Array.from(this.dbSet.fieldMap));
+    const fieldMap = new Map<string | symbol, exprBuilder.FieldMapping>(Array.from(this.dbSet.fieldMap.entries()));
     const eb = new exprBuilder.WhereExprBuilder<T>(fieldMap);
     const res = param(eb, args);
     if (res && res instanceof sql.Expression && res.exps.length > 0) {
@@ -256,7 +256,7 @@ class QuerySet<T extends object> extends IQuerySet<T> {
    * @returns {this}
    */
   groupBy(param: exprBuilder.types.IArrFieldFunc<exprBuilder.GroupExprBuilder<T>>): this {
-    const fieldMap = new Map(Array.from(this.dbSet.fieldMap));
+    const fieldMap = new Map<string | symbol, exprBuilder.FieldMapping>(Array.from(this.dbSet.fieldMap.entries()));
     const eb = new exprBuilder.GroupExprBuilder<T>(fieldMap);
     const res = param(eb);
     if (res && Array.isArray(res)) {
@@ -276,7 +276,7 @@ class QuerySet<T extends object> extends IQuerySet<T> {
    * @returns {this}
    */
   orderBy(param: exprBuilder.types.IArrFieldFunc<exprBuilder.OrderExprBuilder<T>>): this {
-    const fieldMap = new Map(Array.from(this.dbSet.fieldMap));
+    const fieldMap = new Map<string | symbol, exprBuilder.FieldMapping>(Array.from(this.dbSet.fieldMap.entries()));
     const eb = new exprBuilder.OrderExprBuilder<T>(fieldMap);
     const res = param(eb);
     if (res && Array.isArray(res)) {
@@ -348,22 +348,6 @@ class QuerySet<T extends object> extends IQuerySet<T> {
     const result = await this.context.runStatement(this.stat);
     if (result.error) throw result.error;
   }
-
-  // join<A extends Object>(coll: IQuerySet<A>, param: types.IJoinFunc<model.WhereExprBuilder<T>, model.GroupExprBuilder<A>>, joinType?: sql.types.Join): IQuerySet<T & A> {
-  // 	joinType = joinType ?? sql.types.Join.InnerJoin;
-
-  // 	let temp: sql.Expression | null = null;
-  // 	if (param && param instanceof Function) {
-  // 		let mainObj = new model.WhereExprBuilder<T>(this.dbSet.fieldMap);
-  // 		let joinObj = new model.GroupExprBuilder(coll.) coll.getEntity();
-  // 		temp = param(mainObj, joinObj);
-  // 	}
-
-  // 	if (!(temp && temp instanceof sql.Expression && temp.exps.length > 0))
-  // 		throw new Error('Invalid Join');
-
-  // 	return new JoinQuerySet<T, A>(this, coll, joinType, temp);
-  // }
 }
 
 export default QuerySet;

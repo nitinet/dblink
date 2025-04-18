@@ -1,6 +1,6 @@
 import * as sql from 'dblink-core/src/sql/index.js';
 import * as decoratorKeys from '../decorators/Constants.js';
-import * as model from '../exprBuilder/index.js';
+import * as exprBuilder from '../exprBuilder/index.js';
 import DBSet from './DBSet.js';
 import IQuerySet from './IQuerySet.js';
 import QuerySet from './QuerySet.js';
@@ -31,7 +31,7 @@ class TableSet extends IQuerySet {
         if (columnName) {
             const dataType = Reflect.getMetadata('design:type', this.EntityType.prototype, key);
             const primaryKey = Reflect.getMetadata(decoratorKeys.ID_KEY, this.EntityType.prototype, key) === true;
-            const fieldMapping = new model.FieldMapping(key, columnName, dataType, primaryKey);
+            const fieldMapping = new exprBuilder.FieldMapping(key, columnName, dataType, primaryKey);
             dbSet.fieldMap.set(key, fieldMapping);
             if (primaryKey)
                 this.primaryFields.push(fieldMapping);
@@ -120,7 +120,7 @@ class TableSet extends IQuerySet {
         if (!this.primaryFields?.length) {
             throw new Error('Primary Key fields not found');
         }
-        const eb = new model.WhereExprBuilder(this.dbSet.fieldMap);
+        const eb = new exprBuilder.WhereExprBuilder(this.dbSet.fieldMap);
         let expr = new sql.Expression();
         this.primaryFields.forEach(pri => {
             const val = Reflect.get(entity, pri.fieldName);
