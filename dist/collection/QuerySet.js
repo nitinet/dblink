@@ -139,6 +139,16 @@ class QuerySet extends IQuerySet {
         }
         return this;
     }
+    join(EntityType, joinFunc) {
+        const fieldMap = new Map(Array.from(this.dbSet.fieldMap.entries()));
+        const eb = new exprBuilder.JoinExprBuilder(fieldMap);
+        const targetEntity = new EntityType();
+        const joinExpr = joinFunc(eb, targetEntity);
+        if (joinExpr && joinExpr instanceof sql.Expression) {
+            this.stat.where = this.stat.where.add(joinExpr);
+        }
+        return this;
+    }
     async update(entity, ...updatedKeys) {
         this.stat.command = sql.types.Command.UPDATE;
         const keys = Reflect.getMetadata(TABLE_COLUMN_KEYS, entity.constructor.prototype);

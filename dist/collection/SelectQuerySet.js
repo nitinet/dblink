@@ -144,6 +144,16 @@ class SelectQuerySet extends IQuerySet {
         }
         return this;
     }
+    join(EntityType, joinFunc) {
+        const fieldMap = new Map(Array.from(this.dbSet.fieldMap.entries()));
+        const eb = new exprBuilder.JoinExprBuilder(fieldMap);
+        const targetEntity = new EntityType();
+        const joinExpr = joinFunc(eb, targetEntity);
+        if (joinExpr && joinExpr instanceof sql.Expression) {
+            this.stat.where = this.stat.where.add(joinExpr);
+        }
+        return this;
+    }
 }
 export default SelectQuerySet;
 //# sourceMappingURL=SelectQuerySet.js.map

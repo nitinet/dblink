@@ -144,6 +144,17 @@ abstract class IQuerySet<T extends object> {
    */
   abstract limit(size: number, index?: number): IQuerySet<T>;
 
+  /**
+   * Function to generate Join clause
+   *
+   * @abstract
+   * @template U
+   * @param {IEntityType<U>} EntityType - The entity type to join with
+   * @param {exprBuilder.types.IJoinFunc<exprBuilder.JoinExprBuilder<T>, U>} joinFunc - Function defining the join condition
+   * @returns {IQuerySet<T>}
+   */
+  abstract join<U extends object>(EntityType: IEntityType<U>, joinFunc: exprBuilder.types.IJoinFunc<exprBuilder.JoinExprBuilder<T>, U>): IQuerySet<T>;
+
   // Util function
   /**
    * Get Column Expressions
