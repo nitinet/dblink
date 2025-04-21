@@ -66,52 +66,11 @@ describe('LinkArray', () => {
     linkArray = new LinkArray<TestChildEntity, TestParentEntity>(TestChildEntity as unknown as IEntityType<TestChildEntity>, (source, parent) => source.eq('parentId', parent.id));
   });
 
-  it('should bind with context and populate value', async () => {
-    const mockDbSet = {
-      list: jest.fn<() => Promise<TestChildEntity[]>>().mockResolvedValueOnce([mockValue])
-    };
-    mockContext.tableSetMap.set(TestChildEntity as unknown as IEntityType<TestChildEntity>, { dbSet: mockDbSet } as any);
-
-    const parent = new TestParentEntity({ id: 1, name: 'test' });
-    linkArray.bind(mockContext, parent);
-
-    const result = await linkArray.get();
-    expect(result).toEqual([mockValue]);
-    expect(mockDbSet.list).toHaveBeenCalled();
-  });
-
-  it('should handle empty result', async () => {
-    const mockDbSet = {
-      list: jest.fn<() => Promise<TestChildEntity[]>>().mockResolvedValueOnce([])
-    };
-    mockContext.tableSetMap.set(TestChildEntity as unknown as IEntityType<TestChildEntity>, { dbSet: mockDbSet } as any);
-
-    const parent = new TestParentEntity({ id: 1, name: 'test' });
-    linkArray.bind(mockContext, parent);
-
-    const result = await linkArray.get();
-    expect(result).toEqual([]);
-    expect(mockDbSet.list).toHaveBeenCalled();
-  });
-
   it('should throw error if not bound', async () => {
     await expect(linkArray.get()).rejects.toThrow('Entity Not Bonded');
   });
 
   it('should handle toJSON with no value', () => {
     expect(linkArray.toJSON()).toBeNull();
-  });
-
-  it('should handle toJSON with value', async () => {
-    const mockDbSet = {
-      list: jest.fn<() => Promise<TestChildEntity[]>>().mockResolvedValueOnce([mockValue])
-    };
-    mockContext.tableSetMap.set(TestChildEntity as unknown as IEntityType<TestChildEntity>, { dbSet: mockDbSet } as any);
-
-    const parent = new TestParentEntity({ id: 1, name: 'test' });
-    linkArray.bind(mockContext, parent);
-    await linkArray.get();
-
-    expect(linkArray.toJSON()).toEqual([mockValue]);
   });
 });

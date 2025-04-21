@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "types": "./src/index.ts",
   "scripts": {
-    "test": "jest",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "build": "run-s tsc prettier eslint",
     "tsc": "tsc",
     "eslint": "eslint --fix ./src/**/*.ts",

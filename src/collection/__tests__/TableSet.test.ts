@@ -1,56 +1,5 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import 'reflect-metadata';
-
-// Mock all required dblink-core dependencies
-jest.mock(
-  'dblink-core/src/sql/Expression.js',
-  () => ({
-    default: jest.fn().mockImplementation(() => ({
-      add: jest.fn(),
-      value: null
-    }))
-  }),
-  { virtual: true }
-);
-
-jest.mock(
-  'dblink-core/src/sql/index.js',
-  () => ({
-    Statement: jest.fn(),
-    Expression: jest.fn(),
-    Collection: jest.fn(),
-    types: {
-      Command: {
-        SELECT: 'SELECT',
-        INSERT: 'INSERT',
-        UPDATE: 'UPDATE',
-        DELETE: 'DELETE'
-      }
-    }
-  }),
-  { virtual: true }
-);
-
-jest.mock(
-  'dblink-core/src/types.js',
-  () => ({
-    IEntityType: jest.fn()
-  }),
-  { virtual: true }
-);
-
-// Mock sub-dependencies
-jest.mock(
-  'dblink-core/src/sql/types/Operator.js',
-  () => ({
-    default: {
-      AND: 'AND',
-      OR: 'OR',
-      EQ: '='
-    }
-  }),
-  { virtual: true }
-);
 
 import TableSet from '../../collection/TableSet.js';
 import { Column, Id, Table } from '../../decorators/index.js';
