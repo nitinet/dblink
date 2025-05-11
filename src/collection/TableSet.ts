@@ -8,7 +8,6 @@ import { OperandType } from '../exprBuilder/types.js';
 import DBSet from './DBSet.js';
 import IQuerySet from './IQuerySet.js';
 import QuerySet from './QuerySet.js';
-import SelectQuerySet from './SelectQuerySet.js';
 
 /**
  * Table Set
@@ -62,19 +61,6 @@ class TableSet<T extends object> extends IQuerySet<T> {
   getEntityType(): IEntityType<T> {
     return this.EntityType;
   }
-
-  // getEntity() {
-  // 	let obj = new this.EntityType();
-
-  // 	let keys: string[] = Reflect.getMetadata(TABLE_COLUMN_KEYS, this.EntityType.prototype);
-  // 	keys.forEach(key => {
-  // 		let field = Reflect.get(obj, key);
-  // 		if (field instanceof exprBuilder.LinkObject || field instanceof exprBuilder.LinkArray) {
-  // 			field.bind(this.context, obj);
-  // 		}
-  // 	});
-  // 	return obj;
-  // }
 
   /**
    * Create DbSet
@@ -508,13 +494,23 @@ class TableSet<T extends object> extends IQuerySet<T> {
   /**
    * Get Queryable Select object with custom Type
    *
-   * @template {Object} U
-   * @param {types.IEntityType<U>} EntityType
-   * @returns {SelectQuerySet<U>}
+   * @param {(keyof T)[]} columnKeys
+   * @returns {QuerySet<T>}
    */
-  select<U extends object>(EntityType: IEntityType<U>): SelectQuerySet<U> {
-    const res = new SelectQuerySet(this.context, EntityType, this.dbSet);
-    return res;
+  select(columnKeys: (keyof T)[]): QuerySet<T> {
+    const q = new QuerySet(this.context, this.EntityType, this.dbSet);
+    return q.select(columnKeys);
+  }
+
+  /**
+   * Get Queryable Select object with custom Type
+   *
+   * @param {(keyof T)[]} foreignKeys
+   * @returns {QuerySet<T>}
+   */
+  include(foreignKeys: (keyof T)[]): QuerySet<T> {
+    const q = new QuerySet(this.context, this.EntityType, this.dbSet);
+    return q.include(foreignKeys);
   }
 }
 

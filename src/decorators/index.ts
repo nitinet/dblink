@@ -8,7 +8,8 @@
  * @module decorators
  */
 import Column from './Column.js';
+import Foreign from './Foreign.js';
 import Id from './Id.js';
 import Table from './Table.js';
 
-export { Column, Id, Table };
+export { Column, Foreign, Id, Table };

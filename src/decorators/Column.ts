@@ -12,7 +12,14 @@ function Column(name?: string): (target: object, property: string) => void {
     const val = name ?? property;
 
     let columnVals: string[] | null = Reflect.getMetadata(TABLE_COLUMN_KEYS, target);
-    if (!columnVals) columnVals = [];
+    if (!columnVals) {
+      columnVals = [];
+    }
+    if (columnVals.includes(property)) {
+      throw new Error(`Duplicate column name: ${property}`);
+    }
+
+    // Add the property to the column keys
     columnVals.push(property);
     Reflect.defineMetadata(TABLE_COLUMN_KEYS, columnVals, target);
 

@@ -4,11 +4,11 @@ import { IEntityType } from 'dblink-core/src/types.js';
 import * as lodash from 'lodash-es';
 import { Readable, Transform, TransformCallback } from 'node:stream';
 import Context from '../Context.js';
-import { TABLE_COLUMN_KEYS } from '../decorators/Constants.js';
+import { FOREIGN_KEY_FUNC, FOREIGN_KEY_TYPE, TABLE_COLUMN_KEYS } from '../decorators/Constants.js';
 import * as exprBuilder from '../exprBuilder/index.js';
+import { IForeignFunc } from '../exprBuilder/types.js';
 import DBSet from './DBSet.js';
 import IQuerySet from './IQuerySet.js';
-import SelectQuerySet from './SelectQuerySet.js';
 
 /**
  * QuerySet
@@ -45,11 +45,18 @@ class QuerySet<T extends object> extends IQuerySet<T> {
   stat: sql.Statement = new sql.Statement(sql.types.Command.SELECT);
 
   /**
-   * Select Keys
+   * Column Keys
    *
-   * @type {string[]}
+   * @type {(keyof T)[]}
    */
-  selectKeys: string[];
+  columnKeys: (keyof T)[] = [];
+
+  /**
+   * Foreign Keys
+   *
+   * @type {(keyof T)[]}
+   */
+  foreignKeys: (keyof T)[] = [];
 
   /**
    * Creates an instance of QuerySet.
@@ -69,30 +76,19 @@ class QuerySet<T extends object> extends IQuerySet<T> {
     this.alias = this.dbSet.tableName.charAt(0);
     this.stat.collection.value = this.dbSet.tableName;
     this.stat.collection.alias = this.alias;
-
-    this.selectKeys = Reflect.getMetadata(TABLE_COLUMN_KEYS, this.EntityType.prototype);
   }
-
-  // getEntity() {
-  // 	let res = new this.EntityType();
-  // 	let keys: string[] = Reflect.getMetadata(TABLE_COLUMN_KEYS, this.EntityType.prototype);
-  // 	keys.forEach(key => {
-  // 		let field = Reflect.get(res, key);
-  // 		if (field instanceof model.LinkObject || field instanceof model.LinkArray) {
-  // 			field.bind(this.context, res);
-  // 		}
-  // 	});
-
-  // 	return res;
-  // }
 
   // Select Functions
   /**
    * Prepare select statement
    */
   prepareSelectStatement() {
+    if (this.columnKeys.length == 0) {
+      this.columnKeys = Reflect.getMetadata(TABLE_COLUMN_KEYS, this.EntityType.prototype);
+    }
+
     // Get all Columns
-    const targetKeys: string[] = Reflect.getMetadata(TABLE_COLUMN_KEYS, this.EntityType.prototype);
+    const targetKeys: string[] = this.columnKeys.map(key => key.toString());
     const fields = this.dbSet.getFieldMappingsByKeys(targetKeys);
     this.stat.columns = this.getColumnExprs(fields, this.alias);
   }
@@ -106,7 +102,7 @@ class QuerySet<T extends object> extends IQuerySet<T> {
   async list(): Promise<T[]> {
     this.prepareSelectStatement();
     const result = await this.context.runStatement(this.stat);
-    return result.rows.map(this.transformer.bind(this));
+    return Promise.all(result.rows.map(this.transformer.bind(this)));
   }
 
   /**
@@ -143,20 +139,41 @@ class QuerySet<T extends object> extends IQuerySet<T> {
    * @param {any} row
    * @returns {T}
    */
-  transformer(row: Record<string, unknown>): T {
-    this.selectKeys.forEach(key => {
-      const fieldMapping = this.dbSet.fieldMap.get(key);
+  async transformer(row: Record<string, unknown>): Promise<T> {
+    this.columnKeys.forEach(key => {
+      const fieldMapping = this.dbSet.fieldMap.get(key.toString());
       if (fieldMapping && key != fieldMapping.colName) {
-        row[key] = row[fieldMapping.colName];
+        row[key.toString()] = row[fieldMapping.colName];
       }
     });
+
     const obj = plainToInstance(this.EntityType, row, { enableImplicitConversion: true, excludeExtraneousValues: true });
-    this.selectKeys.forEach(key => {
-      const field = Reflect.get(obj, key);
-      if (field instanceof exprBuilder.LinkObject || field instanceof exprBuilder.LinkArray) {
-        field.bind(this.context, obj);
-      }
-    });
+
+    await Promise.all(
+      this.foreignKeys.map(async key => {
+        const foreignType: IEntityType<object> = Reflect.getMetadata(FOREIGN_KEY_TYPE, obj, key as string | symbol);
+        const foreignFunc: IForeignFunc<exprBuilder.WhereExprBuilder<object>, T> = Reflect.getMetadata(FOREIGN_KEY_FUNC, obj, key as string | symbol);
+        const propertyType = Reflect.getMetadata('design:type', obj, key as string | symbol);
+
+        if (!foreignType || !foreignFunc || !propertyType) return;
+
+        const foreignTableSet = this.context.tableSetMap.get(foreignType);
+        if (!foreignTableSet) throw new TypeError('Invalid Type');
+
+        const foreignQuerySet = foreignTableSet.where(eb => {
+          return foreignFunc(eb, obj);
+        });
+
+        if (propertyType === Array) {
+          const data = await foreignQuerySet.list();
+          Reflect.set(obj, key, data);
+        } else {
+          const data = await foreignQuerySet.single();
+          Reflect.set(obj, key, data);
+        }
+      })
+    );
+
     return obj;
   }
 
@@ -169,12 +186,14 @@ class QuerySet<T extends object> extends IQuerySet<T> {
   async stream(): Promise<Readable> {
     this.prepareSelectStatement();
     const dataStream = await this.context.streamStatement(this.stat);
+
     const transformerFunc = this.transformer.bind(this);
 
     return dataStream.pipe(
       new Transform({
-        transform: (chunk: Record<string, unknown>, encoding: BufferEncoding, callback: TransformCallback) => {
-          callback(null, transformerFunc(chunk));
+        transform: async (chunk: Record<string, unknown>, encoding: BufferEncoding, callback: TransformCallback) => {
+          const data: T = await transformerFunc(chunk);
+          callback(null, data);
         }
       })
     );
@@ -184,13 +203,23 @@ class QuerySet<T extends object> extends IQuerySet<T> {
   /**
    * Get Queryable Select object with custom Type
    *
-   * @template {Object} U
-   * @param {IEntityType<U>} EntityType
-   * @returns {IQuerySet<U>}
+   * @param {(keyof T)[]} columnKeys
+   * @returns {QuerySet<U>}
    */
-  select<U extends object>(EntityType: IEntityType<U>): IQuerySet<U> {
-    const res = new SelectQuerySet(this.context, EntityType, this.dbSet);
-    return res;
+  select(columnKeys: (keyof T)[]): this {
+    this.columnKeys.push(...columnKeys);
+    return this;
+  }
+
+  /**
+   * Get Queryable Select object with custom Type
+   *
+   * @param {(keyof T)[]} foreignKeys
+   * @returns {this}
+   */
+  include(foreignKeys: (keyof T)[]): this {
+    this.foreignKeys.push(...foreignKeys);
+    return this;
   }
 
   // Conditional Functions

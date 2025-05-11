@@ -11,11 +11,11 @@ type IArrFieldFunc<T> = (source: T) => Expression[];
 /**
  * Join Function Type
  *
- * @typedef {IJoinFunc}
+ * @typedef {IForeignFunc}
  * @template A
  * @template B
  */
-type IJoinFunc<A, B> = (sourceA: A, sourceB: B) => Expression;
+type IForeignFunc<A, B> = (sourceA: A, sourceB: B) => Expression;
 
 /**
  * Where Function Type
@@ -44,4 +44,4 @@ type KeyOf<T> = keyof T;
  */
 type OperandType<T, K extends keyof T> = T[K] | Expression;
 
-export { IArrFieldFunc, IJoinFunc, IWhereFunc, KeyOf, OperandType };
+export { IArrFieldFunc, IForeignFunc, IWhereFunc, KeyOf, OperandType };

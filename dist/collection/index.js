@@ -1,6 +1,5 @@
 import IQuerySet from './IQuerySet.js';
-import LinkSet from './LinkSet.js';
 import QuerySet from './QuerySet.js';
 import TableSet from './TableSet.js';
-export { IQuerySet, LinkSet, QuerySet, TableSet };
-//# sourceMappingURL=index.js.map
+export { IQuerySet, QuerySet, TableSet };
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi9zcmMvY29sbGVjdGlvbi9pbmRleC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFTQSxPQUFPLFNBQVMsTUFBTSxnQkFBZ0IsQ0FBQztBQUN2QyxPQUFPLFFBQVEsTUFBTSxlQUFlLENBQUM7QUFDckMsT0FBTyxRQUFRLE1BQU0sZUFBZSxDQUFDO0FBRXJDLE9BQU8sRUFBRSxTQUFTLEVBQUUsUUFBUSxFQUFFLFFBQVEsRUFBRSxDQUFDIn0=
