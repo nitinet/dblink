@@ -299,9 +299,12 @@ DBLink provides a comprehensive set of query operators:
 
 - Comparison: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`
 - Logical: `and`, `or`, `not`
-- String: `like`, `startsWith`, `endsWith`, `contains`
-- Collection: `in`, `notIn`
+- String: `like`
+- Collection: `in`
 - Null checks: `isNull`, `isNotNull`
+- Date: `between`
+- Arithmetic: `add`, `subtract`, `multiply`, `divide`
+- Aggregation: `count`, `sum`, `average`, `min`, `max`
 
 ## Decorator Reference
 
