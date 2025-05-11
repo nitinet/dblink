@@ -1,7 +1,7 @@
 import { plainToInstance } from 'class-transformer';
 import * as sql from 'dblink-core/src/sql/index.js';
 import { IEntityType } from 'dblink-core/src/types.js';
-import * as lodash from 'lodash-es';
+import { cloneDeep } from 'lodash-es';
 import { Readable, Transform, TransformCallback } from 'node:stream';
 import Context from '../Context.js';
 import { FOREIGN_KEY_FUNC, FOREIGN_KEY_TYPE, TABLE_COLUMN_KEYS } from '../decorators/Constants.js';
@@ -112,7 +112,7 @@ class QuerySet<T extends object> extends IQuerySet<T> {
    * @returns {Promise<number>}
    */
   async count(): Promise<number> {
-    const countStmt = lodash.cloneDeep(this.stat);
+    const countStmt = cloneDeep(this.stat);
     countStmt.columns = [new sql.Expression('count(1) as count')];
     countStmt.groupBy.length = 0;
     countStmt.orderBy.length = 0;
