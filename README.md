@@ -322,7 +322,7 @@ Maps a property to a database column.
 
 - `columnName`: Optional custom column name (defaults to property name if not provided)
 
-### @Id()
+### @Id
 
 Marks a property as the primary key for the entity.
 
