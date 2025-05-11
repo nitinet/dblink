@@ -1,3 +1,11 @@
+/**
+ * DBLink - Object-Relational Mapping (ORM) Library
+ *
+ * This library provides a TypeScript-friendly ORM with decorator-based entity mapping,
+ * strongly-typed queries, and transaction support.
+ *
+ * @module dblink
+ */
 import * as core from 'dblink-core';
 import 'reflect-metadata';
 import Context from './Context.js';

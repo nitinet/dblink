@@ -30,7 +30,7 @@ class LinkObject<T extends object, U extends object> {
   private readonly foreignFunc: types.IJoinFunc<WhereExprBuilder<T>, U>;
 
   /**
-   * Link Set
+   * Link Set instance for performing queries
    *
    * @private
    * @type {(LinkSet<T, U> | null)}
@@ -38,7 +38,7 @@ class LinkObject<T extends object, U extends object> {
   private linkSet: LinkSet<T, U> | null = null;
 
   /**
-   * Linked Object Value
+   * Cached value of the linked object
    *
    * @private
    * @type {(T | null)}
@@ -49,8 +49,8 @@ class LinkObject<T extends object, U extends object> {
    * Creates an instance of LinkObject.
    *
    * @constructor
-   * @param {IEntityType<T>} EntityType
-   * @param {types.IJoinFunc<WhereExprBuilder<T>, U>} foreignFunc
+   * @param {IEntityType<T>} EntityType - The type of the linked entity
+   * @param {types.IJoinFunc<WhereExprBuilder<T>, U>} foreignFunc - The function that defines the join relationship
    */
   constructor(EntityType: IEntityType<T>, foreignFunc: types.IJoinFunc<WhereExprBuilder<T>, U>) {
     this.EntityType = EntityType;
@@ -58,10 +58,11 @@ class LinkObject<T extends object, U extends object> {
   }
 
   /**
-   * Function to bind this with parent object
+   * Function to bind this link to a parent object
+   * Sets up the relationship context for querying related entities
    *
-   * @param {Context} context
-   * @param {U} parentObj
+   * @param {Context} context - The database context
+   * @param {U} parentObj - The parent object this link belongs to
    */
   bind(context: Context, parentObj: U) {
     const tableSet = context.tableSetMap.get(this.EntityType);
@@ -72,10 +73,11 @@ class LinkObject<T extends object, U extends object> {
   }
 
   /**
-   * Get linked value
+   * Get the linked entity object
+   * Retrieves the related entity and caches it
    *
    * @async
-   * @returns {Promise<T | null>}
+   * @returns {Promise<T | null>} - The linked entity or null if not found
    */
   async get(): Promise<T | null> {
     if (!this.linkSet) throw new TypeError('Entity Not Bonded');
@@ -84,9 +86,10 @@ class LinkObject<T extends object, U extends object> {
   }
 
   /**
-   * JSON value
+   * Convert to JSON representation
+   * Used for serialization when the object is stringified
    *
-   * @returns {Object | null}
+   * @returns {Object | null} - JSON representation of the linked entity or null
    */
   toJSON(): object | null {
     return this._value?.valueOf() ?? null;

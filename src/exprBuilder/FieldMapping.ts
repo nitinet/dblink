@@ -2,34 +2,35 @@ import { DataType, IEntityType } from 'dblink-core/src/types';
 
 /**
  * FieldMapping
+ * Maps entity properties to database columns with type information
  *
  * @class FieldMapping
  * @typedef {FieldMapping}
  */
 class FieldMapping {
   /**
-   * Field Name
+   * Entity property name
    *
    * @type {string}
    */
   fieldName: string;
 
   /**
-   * Column Name
+   * Database column name
    *
    * @type {string}
    */
   colName: string;
 
   /**
-   * Column Type
+   * Data type of the column/property
    *
    * @type {IEntityType<DataType>}
    */
   dataType: IEntityType<DataType>;
 
   /**
-   * Is this column Primary Key
+   * Indicates whether this column is part of the primary key
    *
    * @type {boolean}
    */
@@ -39,10 +40,10 @@ class FieldMapping {
    * Creates an instance of FieldMapping.
    *
    * @constructor
-   * @param {string} fieldName
-   * @param {string} colName
-   * @param {IEntityType<DataType>} dataType
-   * @param {boolean} primaryKey
+   * @param {string} fieldName - The entity property name
+   * @param {string} colName - The database column name
+   * @param {IEntityType<DataType>} dataType - The data type
+   * @param {boolean} primaryKey - Whether this is a primary key field
    */
   constructor(fieldName: string, colName: string, dataType: IEntityType<DataType>, primaryKey: boolean) {
     this.fieldName = fieldName;

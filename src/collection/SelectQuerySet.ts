@@ -169,44 +169,6 @@ class SelectQuerySet<T extends object> extends IQuerySet<T> {
     );
   }
 
-  /**
-   * Get plain object list
-   *
-   * @async
-   * @param {(keyof T)[]} keys
-   * @returns {Promise<Partial<T>[]>}
-   */
-  async listPlain(keys: (keyof T)[]): Promise<Partial<T>[]> {
-    const fields = this.dbSet.getFieldMappingsByKeys(<string[]>keys);
-    this.stat.columns = this.getColumnExprs(fields, this.alias ?? undefined);
-
-    const input = await this.context.runStatement(this.stat);
-    const data = input.rows.map(row => {
-      const obj: Partial<T> = {};
-      fields.forEach(field => {
-        const colName = field.colName;
-        const val = row[colName] ?? row[colName.toLowerCase()] ?? row[colName.toUpperCase()];
-        Reflect.set(obj, field.fieldName, val);
-      });
-      return obj;
-    });
-    return data;
-  }
-
-  /**
-   * Get plain object list and total count
-   *
-   * @async
-   * @param {(keyof T)[]} keys
-   * @returns {Promise<{ count: number; values: Partial<T>[] }>}
-   */
-  async listPlainAndCount(keys: (keyof T)[]): Promise<{ count: number; values: Partial<T>[] }> {
-    const values = await this.listPlain(keys);
-    const count = await this.count();
-
-    return { count, values };
-  }
-
   // Selection Functions
   /**
    * Get Queryable Select object with custom Type

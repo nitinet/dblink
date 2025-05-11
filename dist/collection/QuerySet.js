@@ -72,26 +72,6 @@ class QuerySet extends IQuerySet {
             }
         }));
     }
-    async listPlain(keys) {
-        const fields = this.dbSet.getFieldMappingsByKeys(keys);
-        this.stat.columns = this.getColumnExprs(fields, this.alias);
-        const input = await this.context.runStatement(this.stat);
-        const data = input.rows.map(row => {
-            const obj = {};
-            fields.forEach(field => {
-                const colName = field.colName;
-                const val = row[colName] ?? row[colName.toLowerCase()] ?? row[colName.toUpperCase()];
-                Reflect.set(obj, field.fieldName, val);
-            });
-            return obj;
-        });
-        return data;
-    }
-    async listPlainAndCount(keys) {
-        const values = await this.listPlain(keys);
-        const count = await this.count();
-        return { count, values };
-    }
     select(EntityType) {
         const res = new SelectQuerySet(this.context, EntityType, this.dbSet);
         return res;

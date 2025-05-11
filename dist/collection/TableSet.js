@@ -267,14 +267,6 @@ class TableSet extends IQuerySet {
         const q = new QuerySet(this.context, this.EntityType, this.dbSet);
         return q.stream();
     }
-    listPlain(keys) {
-        const q = new QuerySet(this.context, this.EntityType, this.dbSet);
-        return q.listPlain(keys);
-    }
-    listPlainAndCount(keys) {
-        const q = new QuerySet(this.context, this.EntityType, this.dbSet);
-        return q.listPlainAndCount(keys);
-    }
     select(EntityType) {
         const res = new SelectQuerySet(this.context, EntityType, this.dbSet);
         return res;

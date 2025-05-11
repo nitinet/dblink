@@ -54,24 +54,6 @@ abstract class IQuerySet<T extends object> {
   abstract stream(): Promise<Readable>;
 
   /**
-   * Get plain object list
-   *
-   * @abstract
-   * @param {(keyof T)[]} keys
-   * @returns {Promise<Partial<T>[]>}
-   */
-  abstract listPlain(keys: (keyof T)[]): Promise<Partial<T>[]>;
-
-  /**
-   * Get plain object list and total count
-   *
-   * @abstract
-   * @param {(keyof T)[]} keys
-   * @returns {Promise<{ count: number; values: Partial<T>[] }>}
-   */
-  abstract listPlainAndCount(keys: (keyof T)[]): Promise<{ count: number; values: Partial<T>[] }>;
-
-  /**
    * Get Entity object
    *
    * @async

@@ -506,28 +506,6 @@ class TableSet<T extends object> extends IQuerySet<T> {
   }
 
   /**
-   * Get plain object list
-   *
-   * @param {(keyof T)[]} keys
-   * @returns {Promise<Partial<T>[]>}
-   */
-  listPlain(keys: (keyof T)[]): Promise<Partial<T>[]> {
-    const q = new QuerySet(this.context, this.EntityType, this.dbSet);
-    return q.listPlain(keys);
-  }
-
-  /**
-   * Get plain object list and total count
-   *
-   * @param {(keyof T)[]} keys
-   * @returns {Promise<{ count: number; values: Partial<T>[] }>}
-   */
-  listPlainAndCount(keys: (keyof T)[]): Promise<{ count: number; values: Partial<T>[] }> {
-    const q = new QuerySet(this.context, this.EntityType, this.dbSet);
-    return q.listPlainAndCount(keys);
-  }
-
-  /**
    * Get Queryable Select object with custom Type
    *
    * @template {Object} U

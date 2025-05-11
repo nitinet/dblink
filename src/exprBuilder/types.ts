@@ -27,6 +27,7 @@ type IWhereFunc<T> = (source: T, ...args: unknown[]) => Expression;
 
 /**
  * Keyof Type
+ * Type utility for getting keys of type T
  *
  * @typedef {KeyOf}
  * @template T
@@ -34,11 +35,12 @@ type IWhereFunc<T> = (source: T, ...args: unknown[]) => Expression;
 type KeyOf<T> = keyof T;
 
 /**
- * Opoerand Type
+ * Operand Type
+ * Represents the type of an operand based on the key K of type T
  *
  * @typedef {OperandType}
  * @template T
- * @template {keyof T} K
+ * @template K
  */
 type OperandType<T, K extends keyof T> = T[K] | Expression;
 

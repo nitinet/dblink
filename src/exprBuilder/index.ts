@@ -1,3 +1,12 @@
+/**
+ * Expression Builder Module
+ *
+ * This module provides classes for building SQL expressions in a type-safe manner.
+ * It includes builders for WHERE conditions, GROUP BY clauses, ORDER BY clauses,
+ * and utilities for handling field mappings and relationships between entities.
+ *
+ * @module exprBuilder
+ */
 import FieldMapping from './FieldMapping.js';
 import GroupExprBuilder from './GroupExprBuilder.js';
 import LinkArray from './LinkArray.js';

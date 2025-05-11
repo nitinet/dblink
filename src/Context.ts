@@ -134,10 +134,11 @@ export default class Context {
   }
 
   /**
-   * Create Transaction
+   * Initialize a new transaction
+   * Creates a cloned Context with its own transaction
    *
    * @async
-   * @returns {Promise<this>}
+   * @returns {Promise<this>} A new Context instance with an active transaction
    */
   async initTransaction(): Promise<this> {
     // Create Clone

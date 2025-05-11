@@ -5,14 +5,15 @@ import { KeyOf } from './types.js';
 
 /**
  * Base Expression Builder
+ * Abstract base class for building SQL expressions in a type-safe manner
  *
  * @class BaseExprBuilder
  * @typedef {BaseExprBuilder}
- * @template T
+ * @template T - The entity type
  */
 class BaseExprBuilder<T> {
   /**
-   * field name to Field Map
+   * Field mapping for entity properties to database columns
    *
    * @private
    * @type {Map<string | number | symbol, FieldMapping>}
@@ -20,7 +21,7 @@ class BaseExprBuilder<T> {
   private readonly fieldMap: Map<string | number | symbol, FieldMapping>;
 
   /**
-   * Alias
+   * Table alias for SQL queries
    *
    * @private
    * @type {(string | undefined)}
@@ -31,8 +32,8 @@ class BaseExprBuilder<T> {
    * Creates an instance of BaseExprBuilder.
    *
    * @constructor
-   * @param {Map<string | symbol, FieldMapping>} fieldMap
-   * @param {?string} [alias]
+   * @param {Map<string | symbol, FieldMapping>} fieldMap - Map of entity fields to database columns
+   * @param {?string} [alias] - Optional table alias for SQL queries
    */
   constructor(fieldMap: Map<string | symbol, FieldMapping>, alias?: string) {
     this.fieldMap = fieldMap;
@@ -40,11 +41,12 @@ class BaseExprBuilder<T> {
   }
 
   /**
-   * Create Expression
+   * Create a SQL expression for a property
+   * Creates an expression that represents a column in the database
    *
    * @protected
-   * @param {KeyOf<T>} propName
-   * @returns {*}
+   * @param {KeyOf<T>} propName - The entity property name
+   * @returns {Expression} - The SQL expression representing the column
    */
   protected _expr(propName: KeyOf<T>) {
     const field = this.fieldMap.get(propName);

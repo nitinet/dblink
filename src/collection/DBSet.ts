@@ -2,20 +2,22 @@ import * as model from '../exprBuilder/index.js';
 
 /**
  * DBSet
+ * Represents a database table or set with field mappings
  *
  * @class DBSet
  * @typedef {DBSet}
  */
 class DBSet {
   /**
-   * Table name
+   * Table name in the database
    *
    * @type {string}
    */
   tableName: string;
 
   /**
-   * field name to FieldMapping map
+   * Map of field names to their corresponding FieldMapping objects
+   * Stores the mapping between entity properties and database columns
    *
    * @type {Map<string, model.FieldMapping>}
    */
@@ -25,17 +27,18 @@ class DBSet {
    * Creates an instance of DBSet.
    *
    * @constructor
-   * @param {string} tableName
+   * @param {string} tableName - The name of the database table
    */
   constructor(tableName: string) {
     this.tableName = tableName;
   }
 
   /**
-   * filter field mappings based on property names
+   * Filter field mappings based on property names
+   * Returns an array of FieldMapping objects for the specified property names
    *
-   * @param {(string | symbol)[]} props
-   * @returns {model.FieldMapping[]}
+   * @param {string[]} props - The property names to filter by
+   * @returns {model.FieldMapping[]} - Array of field mappings for the specified properties
    */
   getFieldMappingsByKeys(props: string[]): model.FieldMapping[] {
     return props
