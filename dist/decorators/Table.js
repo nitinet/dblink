@@ -1,9 +1,0 @@
-import { TABLE_KEY } from './Constants.js';
-function Table(name) {
-    return function (target) {
-        const val = name ?? target.name;
-        return Reflect.defineMetadata(TABLE_KEY, val, target);
-    };
-}
-export default Table;
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiVGFibGUuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi9zcmMvZGVjb3JhdG9ycy9UYWJsZS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxPQUFPLEVBQUUsU0FBUyxFQUFFLE1BQU0sZ0JBQWdCLENBQUM7QUFTM0MsU0FBUyxLQUFLLENBQUMsSUFBYTtJQUMxQixPQUFPLFVBQVUsTUFBd0I7UUFDdkMsTUFBTSxHQUFHLEdBQUcsSUFBSSxJQUFJLE1BQU0sQ0FBQyxJQUFJLENBQUM7UUFDaEMsT0FBTyxPQUFPLENBQUMsY0FBYyxDQUFDLFNBQVMsRUFBRSxHQUFHLEVBQUUsTUFBTSxDQUFDLENBQUM7SUFDeEQsQ0FBQyxDQUFDO0FBQ0osQ0FBQztBQUVELGVBQWUsS0FBSyxDQUFDIn0=

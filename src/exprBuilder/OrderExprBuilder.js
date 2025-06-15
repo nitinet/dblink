@@ -1,0 +1,13 @@
+import Expression from 'dblink-core/src/sql/Expression.js';
+import Operator from 'dblink-core/src/sql/types/Operator.js';
+import BaseExprBuilder from './BaseExprBuilder.js';
+class OrderExprBuilder extends BaseExprBuilder {
+  asc(propName) {
+    return new Expression(null, Operator.Asc, this._expr(propName));
+  }
+  desc(propName) {
+    return new Expression(null, Operator.Desc, this._expr(propName));
+  }
+}
+export default OrderExprBuilder;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiT3JkZXJFeHByQnVpbGRlci5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIk9yZGVyRXhwckJ1aWxkZXIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsT0FBTyxVQUFVLE1BQU0sbUNBQW1DLENBQUM7QUFDM0QsT0FBTyxRQUFRLE1BQU0sdUNBQXVDLENBQUM7QUFFN0QsT0FBTyxlQUFlLE1BQU0sc0JBQXNCLENBQUM7QUFZbkQsTUFBTSxnQkFBbUMsU0FBUSxlQUFrQjtJQVFqRSxHQUFHLENBQUMsUUFBa0I7UUFDcEIsT0FBTyxJQUFJLFVBQVUsQ0FBQyxJQUFJLEVBQUUsUUFBUSxDQUFDLEdBQUcsRUFBRSxJQUFJLENBQUMsS0FBSyxDQUFDLFFBQVEsQ0FBQyxDQUFDLENBQUM7SUFDbEUsQ0FBQztJQVFELElBQUksQ0FBQyxRQUFrQjtRQUNyQixPQUFPLElBQUksVUFBVSxDQUFDLElBQUksRUFBRSxRQUFRLENBQUMsSUFBSSxFQUFFLElBQUksQ0FBQyxLQUFLLENBQUMsUUFBUSxDQUFDLENBQUMsQ0FBQztJQUNuRSxDQUFDO0NBQ0Y7QUFFRCxlQUFlLGdCQUFnQixDQUFDIn0=

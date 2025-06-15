@@ -1,0 +1,17 @@
+import Expression from 'dblink-core/src/sql/Expression.js';
+class BaseExprBuilder {
+  fieldMap;
+  alias;
+  constructor(fieldMap, alias) {
+    this.fieldMap = fieldMap;
+    this.alias = alias;
+  }
+  _expr(propName) {
+    const field = this.fieldMap.get(propName);
+    if (!field) throw new TypeError('Field Not Found');
+    const name = this.alias ? this.alias + '.' + field.colName : field.colName;
+    return new Expression(name);
+  }
+}
+export default BaseExprBuilder;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiQmFzZUV4cHJCdWlsZGVyLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiQmFzZUV4cHJCdWlsZGVyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE9BQU8sVUFBVSxNQUFNLG1DQUFtQyxDQUFDO0FBYTNELE1BQU0sZUFBZTtJQU9GLFFBQVEsQ0FBOEM7SUFRdEQsS0FBSyxDQUFxQjtJQVMzQyxZQUFZLFFBQTRDLEVBQUUsS0FBYztRQUN0RSxJQUFJLENBQUMsUUFBUSxHQUFHLFFBQVEsQ0FBQztRQUN6QixJQUFJLENBQUMsS0FBSyxHQUFHLEtBQUssQ0FBQztJQUNyQixDQUFDO0lBVVMsS0FBSyxDQUFDLFFBQWtCO1FBQ2hDLE1BQU0sS0FBSyxHQUFHLElBQUksQ0FBQyxRQUFRLENBQUMsR0FBRyxDQUFDLFFBQVEsQ0FBQyxDQUFDO1FBQzFDLElBQUksQ0FBQyxLQUFLO1lBQUUsTUFBTSxJQUFJLFNBQVMsQ0FBQyxpQkFBaUIsQ0FBQyxDQUFDO1FBQ25ELE1BQU0sSUFBSSxHQUFHLElBQUksQ0FBQyxLQUFLLENBQUMsQ0FBQyxDQUFDLElBQUksQ0FBQyxLQUFLLEdBQUcsR0FBRyxHQUFHLEtBQUssQ0FBQyxPQUFPLENBQUMsQ0FBQyxDQUFDLEtBQUssQ0FBQyxPQUFPLENBQUM7UUFDM0UsT0FBTyxJQUFJLFVBQVUsQ0FBQyxJQUFJLENBQUMsQ0FBQztJQUM5QixDQUFDO0NBQ0Y7QUFFRCxlQUFlLGVBQWUsQ0FBQyJ9

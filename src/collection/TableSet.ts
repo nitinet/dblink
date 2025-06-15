@@ -265,18 +265,15 @@ class TableSet<T extends object> extends IQuerySet<T> {
 
     stat.where = this.whereExpr(entity);
 
-    const result = await this.context.runStatement(stat);
-    if (result.error) {
-      throw new Error(result.error);
-    } else {
-      const idParams: OperandType<T, keyof T>[] = [];
-      this.primaryFields.forEach(field => {
-        idParams.push(Reflect.get(entity, field.fieldName));
-      });
-      const finalObj = await this.get(...idParams);
-      if (!finalObj) throw new Error('Update Object Not Found');
-      return finalObj;
-    }
+    await this.context.runStatement(stat);
+
+    const idParams: OperandType<T, keyof T>[] = [];
+    this.primaryFields.forEach(field => {
+      idParams.push(Reflect.get(entity, field.fieldName));
+    });
+    const finalObj = await this.get(...idParams);
+    if (!finalObj) throw new Error('Update Object Not Found');
+    return finalObj;
   }
 
   /**

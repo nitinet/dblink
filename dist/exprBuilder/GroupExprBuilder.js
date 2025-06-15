@@ -1,8 +1,0 @@
-import BaseExprBuilder from './BaseExprBuilder.js';
-class GroupExprBuilder extends BaseExprBuilder {
-    expr(propName) {
-        return this._expr(propName);
-    }
-}
-export default GroupExprBuilder;
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiR3JvdXBFeHByQnVpbGRlci5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9leHByQnVpbGRlci9Hcm91cEV4cHJCdWlsZGVyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE9BQU8sZUFBZSxNQUFNLHNCQUFzQixDQUFDO0FBWW5ELE1BQU0sZ0JBQW1DLFNBQVEsZUFBa0I7SUFPakUsSUFBSSxDQUFDLFFBQWtCO1FBQ3JCLE9BQU8sSUFBSSxDQUFDLEtBQUssQ0FBQyxRQUFRLENBQUMsQ0FBQztJQUM5QixDQUFDO0NBQ0Y7QUFFRCxlQUFlLGdCQUFnQixDQUFDIn0=

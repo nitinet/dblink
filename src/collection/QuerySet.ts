@@ -323,8 +323,7 @@ class QuerySet<T extends object> extends IQuerySet<T> {
       this.stat.columns.push(expr);
     });
 
-    const result = await this.context.runStatement(this.stat);
-    if (result.error) throw result.error;
+    await this.context.runStatement(this.stat);
   }
 
   /**
@@ -336,8 +335,7 @@ class QuerySet<T extends object> extends IQuerySet<T> {
   async delete(): Promise<void> {
     this.stat.command = sql.types.Command.DELETE;
 
-    const result = await this.context.runStatement(this.stat);
-    if (result.error) throw result.error;
+    await this.context.runStatement(this.stat);
   }
 }
 
