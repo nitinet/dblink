@@ -19,9 +19,10 @@ const COLUMN_KEY = 'columnName';
 
 /** Metadata key for primary key flag */
 const ID_KEY = 'primaryKey';
+const JOIN_KEY = 'join';
 
 /** Metadata key for foreign key flag */
 const FOREIGN_KEY_TYPE = 'foreignKeyType';
 const FOREIGN_KEY_FUNC = 'foreignKeyFunc';
 
-export { COLUMN_KEY, FOREIGN_KEY_TYPE, FOREIGN_KEY_FUNC, ID_KEY, TABLE_COLUMN_KEYS, TABLE_KEY };
+export { COLUMN_KEY, FOREIGN_KEY_FUNC, FOREIGN_KEY_TYPE, ID_KEY, JOIN_KEY, TABLE_COLUMN_KEYS, TABLE_KEY };

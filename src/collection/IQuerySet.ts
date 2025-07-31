@@ -1,4 +1,5 @@
 import * as sql from 'dblink-core/src/sql/index.js';
+import { IEntityType } from 'dblink-core/src/types.js';
 import { Readable } from 'stream';
 import Context from '../Context.js';
 import * as exprBuilder from '../exprBuilder/index.js';
@@ -132,6 +133,17 @@ abstract class IQuerySet<T extends object> {
    * @returns {IQuerySet<T>}
    */
   abstract limit(size: number, index?: number): IQuerySet<T>;
+
+  /**
+   * Function to generate Join clause
+   *
+   * @abstract
+   * @template U
+   * @param {IEntityType<U>} EntityType - The entity type to join with
+   * @param {exprBuilder.types.IForeignFunc<exprBuilder.JoinExprBuilder<T>, U>} joinFunc - Function defining the join condition
+   * @returns {IQuerySet<T>}
+   */
+  abstract join<U extends object>(EntityType: IEntityType<U>, joinFunc: exprBuilder.types.IForeignFunc<exprBuilder.JoinExprBuilder<T>, U>): IQuerySet<T>;
 
   // Util function
   /**

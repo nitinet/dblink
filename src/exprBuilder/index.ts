@@ -9,8 +9,9 @@
  */
 import FieldMapping from './FieldMapping.js';
 import GroupExprBuilder from './GroupExprBuilder.js';
+import JoinExprBuilder from './JoinExprBuilder.js';
 import OrderExprBuilder from './OrderExprBuilder.js';
 import WhereExprBuilder from './WhereExprBuilder.js';
 import * as types from './types.js';
 
-export { FieldMapping, GroupExprBuilder, OrderExprBuilder, types, WhereExprBuilder };
+export { FieldMapping, GroupExprBuilder, JoinExprBuilder, OrderExprBuilder, WhereExprBuilder, types };

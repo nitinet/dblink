@@ -449,6 +449,19 @@ class TableSet<T extends object> extends IQuerySet<T> {
   }
 
   /**
+   * Function to generate Join clause
+   *
+   * @template U
+   * @param {IEntityType<U>} EntityType - The entity type to join with
+   * @param {types.IForeignFunc<exprBuilder.JoinExprBuilder<T>, U>} joinFunc - Function defining the join condition
+   * @returns {QuerySet<T>}
+   */
+  join<U extends object>(EntityType: IEntityType<U>, joinFunc: types.IForeignFunc<exprBuilder.JoinExprBuilder<T>, U>): QuerySet<T> {
+    const q = new QuerySet(this.context, this.EntityType, this.dbSet);
+    return q.join(EntityType, joinFunc);
+  }
+
+  /**
    * Get entity object list
    *
    * @returns {Promise<T[]>}

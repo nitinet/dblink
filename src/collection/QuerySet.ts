@@ -297,6 +297,28 @@ class QuerySet<T extends object> extends IQuerySet<T> {
   }
 
   /**
+   * Function to generate Join clause
+   *
+   * @template U
+   * @param {IEntityType<U>} EntityType - The entity type to join with
+   * @param {exprBuilder.types.IForeignFunc<exprBuilder.JoinExprBuilder<T>, U>} joinFunc - Function defining the join condition
+   * @returns {this}
+   */
+  join<U extends object>(EntityType: IEntityType<U>, joinFunc: exprBuilder.types.IForeignFunc<exprBuilder.JoinExprBuilder<T>, U>): this {
+    const fieldMap = new Map<string | symbol, exprBuilder.FieldMapping>(Array.from(this.dbSet.fieldMap.entries()));
+    const eb = new exprBuilder.JoinExprBuilder<T>(fieldMap);
+    const targetEntity = new EntityType();
+    const joinExpr = joinFunc(eb, targetEntity);
+
+    if (joinExpr && joinExpr instanceof sql.Expression) {
+      // Add join expression to the statement's WHERE clause
+      // This works because our join expressions include the JOIN keywords and ON conditions
+      this.stat.where = this.stat.where.add(joinExpr);
+    }
+    return this;
+  }
+
+  /**
    * Update Row
    *
    * @async
