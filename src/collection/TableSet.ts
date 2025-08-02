@@ -7,6 +7,7 @@ import * as types from '../exprBuilder/types.js';
 import { OperandType } from '../exprBuilder/types.js';
 import DBSet from './DBSet.js';
 import IQuerySet from './IQuerySet.js';
+import JoinQuerySet from './JoinQuerySet.js';
 import QuerySet from './QuerySet.js';
 
 /**
@@ -112,7 +113,8 @@ class TableSet<T extends object> extends IQuerySet<T> {
 
     // Dynamic insert
     const keys: string[] = Reflect.getMetadata(decoratorKeys.TABLE_COLUMN_KEYS, this.EntityType.prototype);
-    const fields = this.dbSet.getFieldMappingsByKeys(keys);
+    const fields = keys.map(key => this.dbSet.fieldMap.get(key as string)).filter(a => a != null);
+
     fields.forEach(field => {
       const val = Reflect.get(entity, field.fieldName);
       if (val == null) return;
@@ -142,7 +144,8 @@ class TableSet<T extends object> extends IQuerySet<T> {
 
     // Dynamic insert
     const keys: string[] = Reflect.getMetadata(decoratorKeys.TABLE_COLUMN_KEYS, this.EntityType.prototype);
-    const fields = this.dbSet.getFieldMappingsByKeys(keys);
+    const fields = keys.map(key => this.dbSet.fieldMap.get(key as string)).filter(a => a != null);
+
     fields.forEach(field => {
       const val = Reflect.get(entity, field.fieldName);
       if (val == null) return;
@@ -195,7 +198,8 @@ class TableSet<T extends object> extends IQuerySet<T> {
 
       // Dynamic insert
       const keys: string[] = Reflect.getMetadata(decoratorKeys.TABLE_COLUMN_KEYS, this.EntityType.prototype);
-      const fields = this.dbSet.getFieldMappingsByKeys(keys);
+      const fields = keys.map(key => this.dbSet.fieldMap.get(key as string)).filter(a => a != null);
+
       fields.forEach(field => {
         const val = Reflect.get(entity, field.fieldName);
         if (val == null) return;
@@ -226,7 +230,8 @@ class TableSet<T extends object> extends IQuerySet<T> {
       throw new Error('Primary Key fields not found');
     }
 
-    const eb = new exprBuilder.WhereExprBuilder<T>(this.dbSet.fieldMap);
+    const fieldColumnMap = new Map(Array.from(this.dbSet.fieldMap.entries()).map(([key, value]) => [key, value.colName])) as Map<keyof T, string>;
+    const eb = new exprBuilder.WhereExprBuilder<T>(fieldColumnMap);
     let expr = new sql.Expression();
     this.primaryFields.forEach(pri => {
       const val = Reflect.get(entity, pri.fieldName);
@@ -248,11 +253,13 @@ class TableSet<T extends object> extends IQuerySet<T> {
     stat.collection.value = this.dbSet.tableName;
 
     // Dynamic update
-    const keys: string[] = Reflect.getMetadata(decoratorKeys.TABLE_COLUMN_KEYS, this.EntityType.prototype);
-    let fields = this.dbSet.getFieldMappingsByKeys(keys).filter(field => !this.primaryFields.some(pri => pri.fieldName == field.fieldName));
-    if (updatedKeys) fields = fields.filter(field => (<(string | symbol)[]>updatedKeys).includes(field.fieldName));
-    if (fields.length == 0) throw new Error('Update Fields Empty');
+    let keys = Reflect.getMetadata(decoratorKeys.TABLE_COLUMN_KEYS, this.EntityType.prototype) as (keyof T)[];
+    if (updatedKeys?.length) keys = keys.filter(key => updatedKeys.includes(key));
 
+    let fields = keys.map(key => this.dbSet.fieldMap.get(key as string)).filter(a => a != null);
+    fields = fields.filter(field => !this.primaryFields.some(pri => pri.fieldName == field.fieldName));
+
+    if (fields.length == 0) throw new Error('Update Fields Empty');
     fields.forEach(field => {
       const c1 = new sql.Expression(field.colName);
       const c2 = new sql.Expression('?');
@@ -285,9 +292,11 @@ class TableSet<T extends object> extends IQuerySet<T> {
    * @returns {Promise<void>}
    */
   async updateBulk(entities: T[], ...updatedKeys: (keyof T)[]): Promise<void> {
-    const keys: string[] = Reflect.getMetadata(decoratorKeys.TABLE_COLUMN_KEYS, this.EntityType.prototype);
-    let fields = this.dbSet.getFieldMappingsByKeys(keys).filter(field => !this.primaryFields.some(pri => pri.fieldName == field.fieldName));
-    if (updatedKeys) fields = fields.filter(field => (<(string | symbol)[]>updatedKeys).includes(field.fieldName));
+    let keys = Reflect.getMetadata(decoratorKeys.TABLE_COLUMN_KEYS, this.EntityType.prototype) as (keyof T)[];
+    if (updatedKeys?.length) keys = keys.filter(key => updatedKeys.includes(key));
+
+    let fields = keys.map(key => this.dbSet.fieldMap.get(key as string)).filter(a => a != null);
+    fields = fields.filter(field => !this.primaryFields.some(pri => pri.fieldName == field.fieldName));
 
     const stmts = entities.map(entity => {
       const stat = new sql.Statement(sql.types.Command.UPDATE);
@@ -436,6 +445,18 @@ class TableSet<T extends object> extends IQuerySet<T> {
     return q.orderBy(func);
   }
 
+  initColumnFieldMap(): void {
+    if (this.columnFieldMap.size == 0) return;
+
+    const fields = Reflect.getMetadata(decoratorKeys.TABLE_COLUMN_KEYS, this.EntityType.prototype) as (keyof T)[];
+    fields.forEach(field => {
+      const fieldMapping = this.dbSet.fieldMap.get(field as string);
+      if (fieldMapping) {
+        this.columnFieldMap.set(fieldMapping.colName, field);
+      }
+    });
+  }
+
   /**
    * Function to generate Limit clause
    *
@@ -508,6 +529,11 @@ class TableSet<T extends object> extends IQuerySet<T> {
   include(foreignKeys: (keyof T)[]): QuerySet<T> {
     const q = new QuerySet(this.context, this.EntityType, this.dbSet);
     return q.include(foreignKeys);
+  }
+
+  join<A extends object>(expr: IQuerySet<A>, param: exprBuilder.types.IForeignFunc<exprBuilder.WhereExprBuilder<T>, exprBuilder.BaseExprBuilder<A>>, joinType?: sql.types.Join): JoinQuerySet<T, A> {
+    const q = new QuerySet(this.context, this.EntityType, this.dbSet);
+    return q.join(expr, param, joinType);
   }
 }
 

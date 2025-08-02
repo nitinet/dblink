@@ -32,21 +32,6 @@ class DBSet {
   constructor(tableName: string) {
     this.tableName = tableName;
   }
-
-  /**
-   * Filter field mappings based on property names
-   * Returns an array of FieldMapping objects for the specified property names
-   *
-   * @param {string[]} props - The property names to filter by
-   * @returns {model.FieldMapping[]} - Array of field mappings for the specified properties
-   */
-  getFieldMappingsByKeys(props: string[]): model.FieldMapping[] {
-    return props
-      .map(a => {
-        return this.fieldMap.get(a);
-      })
-      .filter(a => a != undefined);
-  }
 }
 
 export default DBSet;

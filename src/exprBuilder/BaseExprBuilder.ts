@@ -1,6 +1,4 @@
 import Expression from 'dblink-core/src/sql/Expression.js';
-
-import FieldMapping from './FieldMapping.js';
 import { KeyOf } from './types.js';
 
 /**
@@ -16,9 +14,9 @@ class BaseExprBuilder<T> {
    * Field mapping for entity properties to database columns
    *
    * @private
-   * @type {Map<string | number | symbol, FieldMapping>}
+   * @type {Map<keyof T, string>}
    */
-  private readonly fieldMap: Map<string | number | symbol, FieldMapping>;
+  private readonly fieldColumnMap: Map<keyof T, string>;
 
   /**
    * Table alias for SQL queries
@@ -32,11 +30,11 @@ class BaseExprBuilder<T> {
    * Creates an instance of BaseExprBuilder.
    *
    * @constructor
-   * @param {Map<string | symbol, FieldMapping>} fieldMap - Map of entity fields to database columns
+   * @param {Map<string | symbol, string>} fieldColumnMap - Map of entity fields to database columns
    * @param {?string} [alias] - Optional table alias for SQL queries
    */
-  constructor(fieldMap: Map<string | symbol, FieldMapping>, alias?: string) {
-    this.fieldMap = fieldMap;
+  constructor(fieldColumnMap: Map<keyof T, string>, alias?: string) {
+    this.fieldColumnMap = fieldColumnMap;
     this.alias = alias;
   }
 
@@ -49,9 +47,10 @@ class BaseExprBuilder<T> {
    * @returns {Expression} - The SQL expression representing the column
    */
   protected _expr(propName: KeyOf<T>) {
-    const field = this.fieldMap.get(propName);
-    if (!field) throw new TypeError('Field Not Found');
-    const name = this.alias ? this.alias + '.' + field.colName : field.colName;
+    const column = this.fieldColumnMap.get(propName);
+    if (!column) throw new TypeError('Field Not Found');
+
+    const name = this.alias ? this.alias + '.' + column : column;
     return new Expression(name);
   }
 }

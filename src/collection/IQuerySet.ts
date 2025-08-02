@@ -1,7 +1,10 @@
-import * as sql from 'dblink-core/src/sql/index.js';
 import { Readable } from 'stream';
 import Context from '../Context.js';
 import * as exprBuilder from '../exprBuilder/index.js';
+import { WhereExprBuilder } from '../exprBuilder/index.js';
+import { IForeignFunc, IWhereFunc } from '../exprBuilder/types.js';
+import { sql } from 'dblink-core';
+import JoinQuerySet from './JoinQuerySet.js';
 
 /**
  * IQuerySet
@@ -18,6 +21,17 @@ abstract class IQuerySet<T extends object> {
    * @type {!Context}
    */
   context!: Context;
+
+  /**
+   * Statement
+   *
+   * @type {*}
+   */
+  stat: sql.Statement = new sql.Statement(sql.types.Command.SELECT);
+
+  columnFieldMap = new Map<string, keyof T>();
+
+  abstract initColumnFieldMap(): void;
 
   // Selection Functions
   /**
@@ -87,23 +101,14 @@ abstract class IQuerySet<T extends object> {
   abstract select(columnKeys: (keyof T)[]): IQuerySet<T>;
 
   /**
-   * Get Queryable Select object with custom Type
-   *
-   * @abstract
-   * @param {(keyof T)[]} foreignKeys
-   * @returns {IQuerySet<T>}
-   */
-  abstract include(foreignKeys: (keyof T)[]): IQuerySet<T>;
-
-  /**
    * Function to generate Where clause
    *
    * @abstract
-   * @param {exprBuilder.types.IWhereFunc<exprBuilder.WhereExprBuilder<T>>} func
+   * @param {IWhereFunc<WhereExprBuilder<T>>} func
    * @param {...any[]} args
    * @returns {IQuerySet<T>}
    */
-  abstract where(func: exprBuilder.types.IWhereFunc<exprBuilder.WhereExprBuilder<T>>, ...args: unknown[]): IQuerySet<T>;
+  abstract where(func: IWhereFunc<WhereExprBuilder<T>>, ...args: unknown[]): IQuerySet<T>;
 
   /**
    * Function to generate Group By clause
@@ -133,21 +138,7 @@ abstract class IQuerySet<T extends object> {
    */
   abstract limit(size: number, index?: number): IQuerySet<T>;
 
-  // Util function
-  /**
-   * Get Column Expressions
-   *
-   * @param {exprBuilder.FieldMapping[]} fields
-   * @param {?string} [alias]
-   * @returns {sql.Expression[]}
-   */
-  getColumnExprs(fields: exprBuilder.FieldMapping[], alias?: string): sql.Expression[] {
-    const exprs = fields.map(field => {
-      const val = alias ? alias + '.' + field.colName : field.colName;
-      return new sql.Expression(val);
-    });
-    return exprs;
-  }
+  abstract join<A extends object>(expr: IQuerySet<A>, param: IForeignFunc<exprBuilder.WhereExprBuilder<T>, exprBuilder.BaseExprBuilder<A>>, joinType?: sql.types.Join): JoinQuerySet<T, A>;
 }
 
 export default IQuerySet;

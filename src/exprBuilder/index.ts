@@ -7,10 +7,11 @@
  *
  * @module exprBuilder
  */
+import BaseExprBuilder from './BaseExprBuilder.js';
 import FieldMapping from './FieldMapping.js';
 import GroupExprBuilder from './GroupExprBuilder.js';
 import OrderExprBuilder from './OrderExprBuilder.js';
 import WhereExprBuilder from './WhereExprBuilder.js';
 import * as types from './types.js';
 
-export { FieldMapping, GroupExprBuilder, OrderExprBuilder, types, WhereExprBuilder };
+export { BaseExprBuilder, FieldMapping, GroupExprBuilder, OrderExprBuilder, types, WhereExprBuilder };
