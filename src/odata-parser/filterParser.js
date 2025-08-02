@@ -1,0 +1,475 @@
+import Expression from 'dblink-core/src/sql/Expression.js';
+import Operator from 'dblink-core/src/sql/types/Operator.js';
+import { ODataFilterParseError as ODataParseError } from './types.js';
+export class FilterParser {
+  tokens = [];
+  current = 0;
+  fieldColumnMap;
+  constructor(fieldColumnMap = new Map()) {
+    this.fieldColumnMap = fieldColumnMap;
+  }
+  parse(filter) {
+    if (!filter || filter.trim() === '') {
+      return new Expression();
+    }
+    this.tokens = this.tokenize(filter);
+    this.current = 0;
+    const ast = this.parseOrExpression();
+    return this.astToExpression(ast);
+  }
+  tokenize(filter) {
+    const tokens = [];
+    let position = 0;
+    while (position < filter.length) {
+      if (/\s/.test(filter[position])) {
+        position++;
+        continue;
+      }
+      if (filter[position] === "'") {
+        const start = position;
+        position++;
+        let value = '';
+        while (position < filter.length && filter[position] !== "'") {
+          if (filter[position] === '\\' && position + 1 < filter.length) {
+            position++;
+            switch (filter[position]) {
+              case 'n':
+                value += '\n';
+                break;
+              case 't':
+                value += '\t';
+                break;
+              case 'r':
+                value += '\r';
+                break;
+              case '\\':
+                value += '\\';
+                break;
+              case "'":
+                value += "'";
+                break;
+              default:
+                value += filter[position];
+                break;
+            }
+          } else {
+            value += filter[position];
+          }
+          position++;
+        }
+        if (position >= filter.length) {
+          throw new ODataParseError('Unterminated string literal', start);
+        }
+        position++;
+        tokens.push({ type: 'STRING', value, position: start });
+        continue;
+      }
+      if (/\d/.test(filter[position]) || (filter[position] === '-' && position + 1 < filter.length && /\d/.test(filter[position + 1]))) {
+        const start = position;
+        let value = '';
+        if (filter[position] === '-') {
+          value += filter[position];
+          position++;
+        }
+        while (position < filter.length && /[\d.]/.test(filter[position])) {
+          value += filter[position];
+          position++;
+        }
+        tokens.push({ type: 'NUMBER', value, position: start });
+        continue;
+      }
+      if (filter[position] === '(') {
+        tokens.push({ type: 'LPAREN', value: '(', position });
+        position++;
+        continue;
+      }
+      if (filter[position] === ')') {
+        tokens.push({ type: 'RPAREN', value: ')', position });
+        position++;
+        continue;
+      }
+      if (filter[position] === ',') {
+        tokens.push({ type: 'COMMA', value: ',', position });
+        position++;
+        continue;
+      }
+      if (/[a-zA-Z_]/.test(filter[position])) {
+        const start = position;
+        let value = '';
+        while (position < filter.length && /[a-zA-Z0-9_]/.test(filter[position])) {
+          value += filter[position];
+          position++;
+        }
+        const lowerValue = value.toLowerCase();
+        if (['eq', 'ne', 'gt', 'ge', 'lt', 'le', 'and', 'or', 'not'].includes(lowerValue)) {
+          tokens.push({ type: 'OPERATOR', value: lowerValue, position: start });
+        } else if (['true', 'false'].includes(lowerValue)) {
+          tokens.push({ type: 'BOOLEAN', value: lowerValue, position: start });
+        } else if (lowerValue === 'null') {
+          tokens.push({ type: 'NULL', value: lowerValue, position: start });
+        } else if (['contains', 'startswith', 'endswith', 'add', 'sub', 'mul', 'div', 'in'].includes(lowerValue)) {
+          tokens.push({ type: 'FUNCTION', value: lowerValue, position: start });
+        } else {
+          tokens.push({ type: 'IDENTIFIER', value, position: start });
+        }
+        continue;
+      }
+      throw new ODataParseError(`Unexpected character '${filter[position]}'`, position);
+    }
+    return tokens;
+  }
+  peek() {
+    return this.current < this.tokens.length ? this.tokens[this.current] : null;
+  }
+  advance() {
+    const token = this.peek();
+    this.current++;
+    return token;
+  }
+  expect(type, value) {
+    const token = this.advance();
+    if (!token || token.type !== type || (value && token.value !== value)) {
+      throw new ODataParseError(`Expected ${type}${value ? ` '${value}'` : ''} but got ${token ? `${token.type} '${token.value}'` : 'end of input'}`, token?.position);
+    }
+    return token;
+  }
+  parseOrExpression() {
+    let left = this.parseAndExpression();
+    while (this.peek()?.type === 'OPERATOR' && this.peek()?.value === 'or') {
+      const operator = this.advance();
+      if (!operator) {
+        throw new ODataParseError('Unexpected end of input while parsing OR expression');
+      }
+      const right = this.parseAndExpression();
+      left = {
+        type: 'BinaryExpression',
+        operator: operator.value,
+        left,
+        right
+      };
+    }
+    return left;
+  }
+  parseAndExpression() {
+    let left = this.parseNotExpression();
+    while (this.peek()?.type === 'OPERATOR' && this.peek()?.value === 'and') {
+      const operator = this.advance();
+      if (!operator) {
+        throw new ODataParseError('Unexpected end of input while parsing AND expression');
+      }
+      const right = this.parseNotExpression();
+      left = {
+        type: 'BinaryExpression',
+        operator: operator.value,
+        left,
+        right
+      };
+    }
+    return left;
+  }
+  parseNotExpression() {
+    if (this.peek()?.type === 'OPERATOR' && this.peek()?.value === 'not') {
+      const operator = this.advance();
+      if (!operator) {
+        throw new ODataParseError('Unexpected end of input while parsing NOT expression');
+      }
+      const operand = this.parseNotExpression();
+      return {
+        type: 'UnaryExpression',
+        operator: operator.value,
+        operand
+      };
+    }
+    return this.parseComparisonExpression();
+  }
+  parseComparisonExpression() {
+    let left = this.parseAdditiveExpression();
+    const peeked = this.peek();
+    if (peeked?.type === 'OPERATOR' && ['eq', 'ne', 'gt', 'ge', 'lt', 'le'].includes(peeked.value)) {
+      const operator = this.advance();
+      if (!operator) {
+        throw new ODataParseError('Unexpected end of input while parsing comparison expression');
+      }
+      const right = this.parseAdditiveExpression();
+      left = {
+        type: 'BinaryExpression',
+        operator: operator.value,
+        left,
+        right
+      };
+    }
+    return left;
+  }
+  parseAdditiveExpression() {
+    let left = this.parseMultiplicativeExpression();
+    let peeked = this.peek();
+    while (peeked?.type === 'FUNCTION' && ['add', 'sub'].includes(peeked.value)) {
+      const operator = this.advance();
+      if (!operator) {
+        throw new ODataParseError('Unexpected end of input while parsing additive expression');
+      }
+      this.expect('LPAREN');
+      const right = this.parseMultiplicativeExpression();
+      this.expect('RPAREN');
+      left = {
+        type: 'BinaryExpression',
+        operator: operator.value,
+        left,
+        right
+      };
+      peeked = this.peek();
+    }
+    return left;
+  }
+  parseMultiplicativeExpression() {
+    let left = this.parsePrimaryExpression();
+    let peeked = this.peek();
+    while (peeked?.type === 'FUNCTION' && ['mul', 'div'].includes(peeked.value)) {
+      const operator = this.advance();
+      if (!operator) {
+        throw new ODataParseError('Unexpected end of input while parsing multiplicative expression');
+      }
+      this.expect('LPAREN');
+      const right = this.parsePrimaryExpression();
+      this.expect('RPAREN');
+      left = {
+        type: 'BinaryExpression',
+        operator: operator.value,
+        left,
+        right
+      };
+      peeked = this.peek();
+    }
+    return left;
+  }
+  parsePrimaryExpression() {
+    const token = this.peek();
+    if (!token) {
+      throw new ODataParseError('Unexpected end of input');
+    }
+    if (token.type === 'LPAREN') {
+      this.advance();
+      const expr = this.parseOrExpression();
+      this.expect('RPAREN');
+      return expr;
+    }
+    if (token.type === 'FUNCTION') {
+      return this.parseFunctionCall();
+    }
+    if (token.type === 'STRING') {
+      this.advance();
+      return { type: 'Literal', value: token.value };
+    }
+    if (token.type === 'NUMBER') {
+      this.advance();
+      const numValue = token.value.includes('.') ? parseFloat(token.value) : parseInt(token.value, 10);
+      return { type: 'Literal', value: numValue };
+    }
+    if (token.type === 'BOOLEAN') {
+      this.advance();
+      return { type: 'Literal', value: token.value === 'true' };
+    }
+    if (token.type === 'NULL') {
+      this.advance();
+      return { type: 'Literal', value: null };
+    }
+    if (token.type === 'IDENTIFIER') {
+      this.advance();
+      return { type: 'Identifier', name: token.value };
+    }
+    throw new ODataParseError(`Unexpected token '${token.value}'`, token.position);
+  }
+  parseFunctionCall() {
+    const funcToken = this.expect('FUNCTION');
+    this.expect('LPAREN');
+    const args = [];
+    if (this.peek()?.type === 'RPAREN') {
+      this.advance();
+      return {
+        type: 'FunctionCall',
+        name: funcToken.value,
+        arguments: args
+      };
+    }
+    do {
+      args.push(this.parseOrExpression());
+      if (this.peek()?.type === 'COMMA') {
+        this.advance();
+      } else {
+        break;
+      }
+    } while (this.peek()?.type !== 'RPAREN');
+    this.expect('RPAREN');
+    return {
+      type: 'FunctionCall',
+      name: funcToken.value,
+      arguments: args
+    };
+  }
+  astToExpression(node) {
+    switch (node.type) {
+      case 'BinaryExpression':
+        return this.createBinaryExpression(node);
+      case 'UnaryExpression':
+        return this.createUnaryExpression(node);
+      case 'FunctionCall':
+        return this.createFunctionExpression(node);
+      case 'Literal':
+        return this.createLiteralExpression(node);
+      case 'Identifier':
+        return this.createIdentifierExpression(node);
+      default:
+        throw new ODataParseError(`Unknown AST node type: ${node.type || 'unknown'}`);
+    }
+  }
+  createBinaryExpression(node) {
+    if (!node.left || !node.right || !node.operator) {
+      throw new ODataParseError('Invalid binary expression');
+    }
+    const left = this.astToExpression(node.left);
+    const right = this.astToExpression(node.right);
+    let operator;
+    switch (node.operator) {
+      case 'eq':
+        operator = Operator.Equal;
+        break;
+      case 'ne':
+        operator = Operator.NotEqual;
+        break;
+      case 'gt':
+        operator = Operator.GreaterThan;
+        break;
+      case 'ge':
+        operator = Operator.GreaterThanEqual;
+        break;
+      case 'lt':
+        operator = Operator.LessThan;
+        break;
+      case 'le':
+        operator = Operator.LessThanEqual;
+        break;
+      case 'and':
+        operator = Operator.And;
+        break;
+      case 'or':
+        operator = Operator.Or;
+        break;
+      case 'add':
+        operator = Operator.Plus;
+        break;
+      case 'sub':
+        operator = Operator.Minus;
+        break;
+      case 'mul':
+        operator = Operator.Multiply;
+        break;
+      case 'div':
+        operator = Operator.Devide;
+        break;
+      case 'mod': {
+        const modExpr = new Expression('MOD(?, ?)');
+        modExpr.args = [];
+        throw new ODataParseError('Modulo operator (mod) is not supported by the current SQL expression system');
+      }
+      default:
+        throw new ODataParseError(`Unknown binary operator: ${node.operator}`);
+    }
+    return new Expression(null, operator, left, right);
+  }
+  createUnaryExpression(node) {
+    if (!node.operand || !node.operator) {
+      throw new ODataParseError('Invalid unary expression');
+    }
+    const operand = this.astToExpression(node.operand);
+    let operator;
+    switch (node.operator) {
+      case 'not':
+        operator = Operator.Not;
+        break;
+      default:
+        throw new ODataParseError(`Unknown unary operator: ${node.operator}`);
+    }
+    return new Expression(null, operator, operand);
+  }
+  createFunctionExpression(node) {
+    if (!node.name || !node.arguments) {
+      throw new ODataParseError('Invalid function call');
+    }
+    const args = node.arguments.map(arg => this.astToExpression(arg));
+    switch (node.name) {
+      case 'contains': {
+        if (args.length !== 2) {
+          throw new ODataParseError('contains function requires exactly 2 arguments');
+        }
+        const containsValue = new Expression('?');
+        containsValue.args = [`%${this.extractLiteralValue(node.arguments[1])}%`];
+        return new Expression(null, Operator.Like, args[0], containsValue);
+      }
+      case 'startswith': {
+        if (args.length !== 2) {
+          throw new ODataParseError('startswith function requires exactly 2 arguments');
+        }
+        const startsValue = new Expression('?');
+        startsValue.args = [`${this.extractLiteralValue(node.arguments[1])}%`];
+        return new Expression(null, Operator.Like, args[0], startsValue);
+      }
+      case 'endswith': {
+        if (args.length !== 2) {
+          throw new ODataParseError('endswith function requires exactly 2 arguments');
+        }
+        const endsValue = new Expression('?');
+        endsValue.args = [`%${this.extractLiteralValue(node.arguments[1])}`];
+        return new Expression(null, Operator.Like, args[0], endsValue);
+      }
+      case 'length':
+        if (args.length !== 1) {
+          throw new ODataParseError('length function requires exactly 1 argument');
+        }
+        throw new ODataParseError('Length function is not supported. Consider using a simpler filter or raw SQL query.');
+      case 'year':
+      case 'month':
+      case 'day':
+      case 'hour':
+      case 'minute':
+      case 'second':
+        if (args.length !== 1) {
+          throw new ODataParseError(`${node.name} function requires exactly 1 argument`);
+        }
+        throw new ODataParseError(`Date function '${node.name}' is not supported. Consider using a simpler filter or raw SQL query.`);
+      case 'in':
+        if (args.length < 2) {
+          throw new ODataParseError('in function requires at least 2 arguments');
+        }
+        return new Expression(null, Operator.In, args[0], ...args.slice(1));
+      default:
+        throw new ODataParseError(`Unknown function: ${node.name}`);
+    }
+  }
+  createLiteralExpression(node) {
+    const expr = new Expression('?');
+    expr.args = [node.value];
+    return expr;
+  }
+  createIdentifierExpression(node) {
+    if (!node.name) {
+      throw new ODataParseError('Invalid identifier');
+    }
+    const columnName = this.fieldColumnMap.get(node.name) || node.name;
+    return new Expression(columnName);
+  }
+  extractLiteralValue(node) {
+    if (node.type === 'Literal' && node.value !== null && node.value !== undefined) {
+      return node.value;
+    }
+    throw new ODataParseError('Expected literal value');
+  }
+}
+export function createFilterParser(fieldColumnMap) {
+  return new FilterParser(fieldColumnMap);
+}
+export function parseFilter(filter, fieldColumnMap) {
+  const parser = new FilterParser(fieldColumnMap);
+  return parser.parse(filter);
+}
+export default FilterParser;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZmlsdGVyUGFyc2VyLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiZmlsdGVyUGFyc2VyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE9BQU8sVUFBVSxNQUFNLG1DQUFtQyxDQUFDO0FBQzNELE9BQU8sUUFBUSxNQUFNLHVDQUF1QyxDQUFDO0FBQzdELE9BQU8sRUFBRSxxQkFBcUIsSUFBSSxlQUFlLEVBQUUsTUFBTSxZQUFZLENBQUM7QUFzRHRFLE1BQU0sT0FBTyxZQUFZO0lBQ2YsTUFBTSxHQUFpQixFQUFFLENBQUM7SUFDMUIsT0FBTyxHQUFHLENBQUMsQ0FBQztJQUNaLGNBQWMsQ0FBc0I7SUFNNUMsWUFBWSxpQkFBc0MsSUFBSSxHQUFHLEVBQUU7UUFDekQsSUFBSSxDQUFDLGNBQWMsR0FBRyxjQUFjLENBQUM7SUFDdkMsQ0FBQztJQU9ELEtBQUssQ0FBQyxNQUFjO1FBQ2xCLElBQUksQ0FBQyxNQUFNLElBQUksTUFBTSxDQUFDLElBQUksRUFBRSxLQUFLLEVBQUUsRUFBRSxDQUFDO1lBQ3BDLE9BQU8sSUFBSSxVQUFVLEVBQUUsQ0FBQztRQUMxQixDQUFDO1FBRUQsSUFBSSxDQUFDLE1BQU0sR0FBRyxJQUFJLENBQUMsUUFBUSxDQUFDLE1BQU0sQ0FBQyxDQUFDO1FBQ3BDLElBQUksQ0FBQyxPQUFPLEdBQUcsQ0FBQyxDQUFDO1FBRWpCLE1BQU0sR0FBRyxHQUFHLElBQUksQ0FBQyxpQkFBaUIsRUFBRSxDQUFDO1FBQ3JDLE9BQU8sSUFBSSxDQUFDLGVBQWUsQ0FBQyxHQUFHLENBQUMsQ0FBQztJQUNuQyxDQUFDO0lBS08sUUFBUSxDQUFDLE1BQWM7UUFDN0IsTUFBTSxNQUFNLEdBQWlCLEVBQUUsQ0FBQztRQUNoQyxJQUFJLFFBQVEsR0FBRyxDQUFDLENBQUM7UUFFakIsT0FBTyxRQUFRLEdBQUcsTUFBTSxDQUFDLE1BQU0sRUFBRSxDQUFDO1lBRWhDLElBQUksSUFBSSxDQUFDLElBQUksQ0FBQyxNQUFNLENBQUMsUUFBUSxD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
