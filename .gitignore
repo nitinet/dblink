@@ -10,5 +10,3 @@ tsconfig.tsbuildinfo
 .npm
 package-lock.json
 pnpm-lock.yaml
-
-__tests__/
