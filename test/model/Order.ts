@@ -1,5 +1,5 @@
 import * as decorators from '../../src/decorators/index.js';
-import User from './User.js';
+import Employee from './Employee.js';
 
 @decorators.Table('orders')
 class Order {
@@ -10,8 +10,8 @@ class Order {
   @decorators.Column('user_id')
   userId!: number;
 
-  @decorators.Foreign(User, (builder, parent) => builder.eq('id', (parent as Order).userId))
-  user!: User;
+  @decorators.Foreign(Employee, (builder, parent) => builder.eq('id', (parent as Order).userId))
+  employee!: Employee;
 
   @decorators.Column('order_date')
   orderDate!: Date;

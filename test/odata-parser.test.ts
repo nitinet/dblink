@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { FilterParser, ODataParseError, parseFilter } from '../src/odata-parser/filterParser.js';
+import { FilterParser, parseFilter } from '../src/odata-parser/filterParser.js';
 
 describe('OData Filter Parser', () => {
   let parser: FilterParser;

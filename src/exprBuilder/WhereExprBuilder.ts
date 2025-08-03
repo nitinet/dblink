@@ -102,42 +102,6 @@ class WhereExprBuilder<T> extends BaseExprBuilder<T> {
     return new Expression(null, Operator.GreaterThanEqual, this._expr(propName), this._argExp(operand));
   }
 
-  // Logical Operators
-  /**
-   * Creates an AND logical expression
-   *
-   * @template {KeyOf<T>} K - The property key type
-   * @param {K} propName - The property name to compare
-   * @param {Expression} operand - The expression to combine with AND
-   * @returns {Expression} - The resulting SQL logical expression
-   */
-  and<K extends KeyOf<T>>(propName: K, operand: Expression): Expression {
-    return new Expression(null, Operator.And, this._expr(propName), this._argExp(operand));
-  }
-
-  /**
-   * Creates an OR logical expression
-   *
-   * @template {KeyOf<T>} K - The property key type
-   * @param {K} propName - The property name to compare
-   * @param {Expression} operand - The expression to combine with OR
-   * @returns {Expression} - The resulting SQL logical expression
-   */
-  or<K extends KeyOf<T>>(propName: K, operand: Expression): Expression {
-    return new Expression(null, Operator.Or, this._expr(propName), this._argExp(operand));
-  }
-
-  /**
-   * Creates a NOT logical expression
-   *
-   * @template {KeyOf<T>} K - The property key type
-   * @param {K} propName - The property name to negate
-   * @returns {Expression} - The resulting SQL logical expression
-   */
-  not<K extends KeyOf<T>>(propName: K): Expression {
-    return new Expression(null, Operator.Not, this._expr(propName));
-  }
-
   // Inclusion Functions
   /**
    * Creates an IN inclusion expression
@@ -189,7 +153,7 @@ class WhereExprBuilder<T> extends BaseExprBuilder<T> {
    * @param {K} propName - The property name to check for null
    * @returns {Expression} - The resulting SQL null check expression
    */
-  IsNull<K extends KeyOf<T>>(propName: K): Expression {
+  isNull<K extends KeyOf<T>>(propName: K): Expression {
     return new Expression(null, Operator.IsNull, this._expr(propName));
   }
 
@@ -200,7 +164,7 @@ class WhereExprBuilder<T> extends BaseExprBuilder<T> {
    * @param {K} propName - The property name to check for not null
    * @returns {Expression} - The resulting SQL null check expression
    */
-  IsNotNull<K extends KeyOf<T>>(propName: K): Expression {
+  isNotNull<K extends KeyOf<T>>(propName: K): Expression {
     return new Expression(null, Operator.IsNotNull, this._expr(propName));
   }
 

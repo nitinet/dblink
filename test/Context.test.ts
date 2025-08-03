@@ -3,9 +3,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import Context from '../src/Context.js';
 import TableSet from '../src/collection/TableSet.js';
 import Order from './model/Order.js';
-import Profile from './model/Profile.js';
-import TestDbContext from './model/TestDbContext.js';
-import User from './model/User.js';
+import TestDbContext from './TestDbContext.js';
+import Employee from './model/Employee.js';
 
 // Database configuration for testing
 const TEST_DB_CONFIG = {
@@ -152,20 +151,17 @@ describe('Context', () => {
     it('should initialize handler and bind TableSets', async () => {
       await testContext.init();
 
-      expect(testContext.users.context).toBe(testContext);
+      expect(testContext.employees.context).toBe(testContext);
       expect(testContext.orders.context).toBe(testContext);
-      expect(testContext.profiles.context).toBe(testContext);
     });
 
     it('should populate tableSetMap with entity mappings', async () => {
       await testContext.init();
 
-      expect(testContext.tableSetMap.has(User)).toBe(true);
+      expect(testContext.tableSetMap.has(Employee)).toBe(true);
       expect(testContext.tableSetMap.has(Order)).toBe(true);
-      expect(testContext.tableSetMap.has(Profile)).toBe(true);
-      expect(testContext.tableSetMap.get(User)).toBe(testContext.users);
+      expect(testContext.tableSetMap.get(Employee)).toBe(testContext.employees);
       expect(testContext.tableSetMap.get(Order)).toBe(testContext.orders);
-      expect(testContext.tableSetMap.get(Profile)).toBe(testContext.profiles);
     });
   });
 
@@ -294,9 +290,8 @@ describe('Context', () => {
     it('should bind TableSets to transaction context', async () => {
       const transactionContext = await testContext.initTransaction();
 
-      expect(transactionContext.users.context).toBe(transactionContext);
+      expect(transactionContext.employees.context).toBe(transactionContext);
       expect(transactionContext.orders.context).toBe(transactionContext);
-      expect(transactionContext.profiles.context).toBe(transactionContext);
 
       await transactionContext.rollback(); // Clean up
     });
@@ -362,19 +357,16 @@ describe('Context', () => {
     });
 
     it('should contain properly configured TableSets', async () => {
-      expect(testContext.users).toBeInstanceOf(TableSet);
+      expect(testContext.employees).toBeInstanceOf(TableSet);
       expect(testContext.orders).toBeInstanceOf(TableSet);
-      expect(testContext.profiles).toBeInstanceOf(TableSet);
 
-      expect(testContext.users.getEntityType()).toBe(User);
+      expect(testContext.employees.getEntityType()).toBe(Employee);
       expect(testContext.orders.getEntityType()).toBe(Order);
-      expect(testContext.profiles.getEntityType()).toBe(Profile);
     });
 
     it('should have TableSets with correct table mappings', async () => {
-      expect(testContext.users.dbSet.tableName).toBe('users');
+      expect(testContext.employees.dbSet.tableName).toBe('employees');
       expect(testContext.orders.dbSet.tableName).toBe('orders');
-      expect(testContext.profiles.dbSet.tableName).toBe('profiles');
     });
   });
 

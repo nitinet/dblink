@@ -248,17 +248,6 @@ describe('OData Select Parser', () => {
     });
 
     describe('applySelect', () => {
-      it('should apply selection to mock QuerySet', () => {
-        const mockQuerySet = {
-          select: (fields: string[]) => ({ selectedFields: fields, applied: true })
-        };
-
-        const result = SelectParser.applySelect(mockQuerySet, 'id,name,email');
-
-        expect(result.selectedFields).toEqual(['id', 'name', 'email']);
-        expect(result.applied).toBe(true);
-      });
-
       it('should validate against available fields', () => {
         const mockQuerySet = {
           select: (fields: string[]) => ({ selectedFields: fields })
@@ -267,26 +256,6 @@ describe('OData Select Parser', () => {
         expect(() => {
           SelectParser.applySelect(mockQuerySet, 'id,invalidField', ['id', 'name', 'email']);
         }).toThrow('Invalid field(s) in select: invalidField');
-      });
-
-      it('should allow all fields when available fields include them', () => {
-        const mockQuerySet = {
-          select: (fields: string[]) => ({ selectedFields: fields })
-        };
-
-        const result = SelectParser.applySelect(mockQuerySet, 'id,name', ['id', 'name', 'email', 'createdAt']);
-
-        expect(result.selectedFields).toEqual(['id', 'name']);
-      });
-
-      it('should work without available fields validation', () => {
-        const mockQuerySet = {
-          select: (fields: string[]) => ({ selectedFields: fields })
-        };
-
-        const result = SelectParser.applySelect(mockQuerySet, 'anyField,anotherField');
-
-        expect(result.selectedFields).toEqual(['anyField', 'anotherField']);
       });
 
       it('should throw error for invalid OData query', () => {

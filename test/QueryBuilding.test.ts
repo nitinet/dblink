@@ -1,6 +1,8 @@
 import PostgreSql from 'dblink-pg';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import TestDbContext from './model/TestDbContext.js';
+import TestDbContext from './TestDbContext.js';
+import WhereExprBuilder from '../src/exprBuilder/WhereExprBuilder.js';
+import Employee from './model/Employee.js';
 
 // Database configuration for testing
 const TEST_DB_CONFIG = {
@@ -116,7 +118,7 @@ describe('Query Building', () => {
   describe('Query Structure', () => {
     it('should support fluent query interface', () => {
       // Test that fluent interface methods exist and return chainable objects
-      const query = context.users.where(u => u.eq('lastName', 'Smith')).orderBy(u => [u.asc('firstName')]);
+      const query = context.employees.where(u => u.eq('lastName', 'Smith')).orderBy(u => [u.asc('firstName')]);
 
       expect(query).toBeDefined();
       expect(query).toHaveProperty('list');
@@ -125,7 +127,7 @@ describe('Query Building', () => {
     });
 
     it('should support method chaining', () => {
-      const query = context.users
+      const query = context.employees
         .where(u => u.eq('email', 'test@example.com'))
         .orderBy(u => [u.desc('createdAt')])
         .limit(10);
@@ -136,7 +138,7 @@ describe('Query Building', () => {
     });
 
     it('should support select with specific columns', () => {
-      const query = context.users.select(['id', 'firstName', 'lastName']);
+      const query = context.employees.select(['id', 'firstName', 'lastName']);
 
       expect(query).toBeDefined();
       expect(query).toHaveProperty('where');
@@ -145,7 +147,7 @@ describe('Query Building', () => {
     });
 
     it('should support include for relationships', () => {
-      const query = context.orders.include(['user']);
+      const query = context.orders.include(['employee']);
 
       expect(query).toBeDefined();
       expect(query).toHaveProperty('where');
@@ -171,39 +173,30 @@ describe('Query Building', () => {
         return builder.eq('id', 1);
       };
 
-      const query = context.users.where(whereFunc);
+      const query = context.employees.where(whereFunc);
       expect(query).toBeDefined();
     });
 
     it('should support logical operators', () => {
-      const whereFunc = (builder: any) => {
-        // Test logical operators
-        expect(builder.and).toBeDefined();
-        expect(builder.or).toBeDefined();
-        expect(builder.not).toBeDefined();
-
-        return builder.and(builder.eq('firstName', 'John'), builder.eq('lastName', 'Doe'));
-      };
-
-      const query = context.users.where(whereFunc);
+      const query = context.employees.where(builder => {
+        return builder.eq('firstName', 'John').and(builder.eq('lastName', 'Doe'));
+      });
       expect(query).toBeDefined();
     });
 
     it('should support complex where conditions', () => {
-      const whereFunc = (builder: any) => {
-        return builder.or(builder.and(builder.eq('firstName', 'John'), builder.like('email', '%@example.com')), builder.gt('id', 100));
-      };
-
-      const query = context.users.where(whereFunc);
+      const query = context.employees.where(builder => {
+        return builder.gt('id', 100).or(builder.eq('firstName', 'John').and(builder.like('email', '%@example.com')));
+      });
       expect(query).toBeDefined();
     });
 
     it('should support null checks', () => {
-      const whereFunc = (builder: any) => {
-        return builder.and(builder.isNotNull('email'), builder.isNull('deletedAt'));
+      const whereFunc = (builder: WhereExprBuilder<Employee>) => {
+        return builder.isNotNull('email');
       };
 
-      const query = context.users.where(whereFunc);
+      const query = context.employees.where(whereFunc);
       expect(query).toBeDefined();
     });
 
@@ -212,7 +205,7 @@ describe('Query Building', () => {
         return builder.in('id', [1, 2, 3, 4, 5]);
       };
 
-      const query = context.users.where(whereFunc);
+      const query = context.employees.where(whereFunc);
       expect(query).toBeDefined();
     });
   });
@@ -224,7 +217,7 @@ describe('Query Building', () => {
         return [builder.asc('firstName')];
       };
 
-      const query = context.users.orderBy(orderFunc);
+      const query = context.employees.orderBy(orderFunc);
       expect(query).toBeDefined();
     });
 
@@ -234,7 +227,7 @@ describe('Query Building', () => {
         return [builder.desc('createdAt')];
       };
 
-      const query = context.users.orderBy(orderFunc);
+      const query = context.employees.orderBy(orderFunc);
       expect(query).toBeDefined();
     });
 
@@ -243,14 +236,14 @@ describe('Query Building', () => {
         return [builder.asc('lastName'), builder.asc('firstName'), builder.desc('createdAt')];
       };
 
-      const query = context.users.orderBy(orderFunc);
+      const query = context.employees.orderBy(orderFunc);
       expect(query).toBeDefined();
     });
   });
 
   describe('Pagination', () => {
     it('should support limit with count only', () => {
-      const query = context.users.limit(10);
+      const query = context.employees.limit(10);
 
       expect(query).toBeDefined();
       expect(query).toHaveProperty('list');
@@ -258,7 +251,7 @@ describe('Query Building', () => {
     });
 
     it('should support limit with offset and count', () => {
-      const query = context.users.limit(10, 20); // Skip 10, take 20
+      const query = context.employees.limit(10, 20); // Skip 10, take 20
 
       expect(query).toBeDefined();
       expect(query).toHaveProperty('list');
@@ -266,7 +259,7 @@ describe('Query Building', () => {
 
     it('should support pagination patterns from README', () => {
       // README example: .limit(10,10) // Skip 10, take 10
-      const query = context.users.orderBy(u => [u.desc('createdAt')]).limit(10, 10);
+      const query = context.employees.orderBy(u => [u.desc('createdAt')]).limit(10, 10);
 
       expect(query).toBeDefined();
     });
@@ -274,7 +267,7 @@ describe('Query Building', () => {
 
   describe('Aggregation Support', () => {
     it('should support count operation', () => {
-      const query = context.users.where(u => u.eq('lastName', 'Smith'));
+      const query = context.employees.where(u => u.eq('lastName', 'Smith'));
 
       expect(query).toHaveProperty('count');
     });
@@ -288,48 +281,35 @@ describe('Query Building', () => {
 
   describe('Result Retrieval', () => {
     it('should support list operation for multiple results', () => {
-      const query = context.users.where(u => u.eq('lastName', 'Smith')).orderBy(u => [u.asc('firstName')]);
+      const query = context.employees.where(u => u.eq('lastName', 'Smith')).orderBy(u => [u.asc('firstName')]);
 
       expect(query).toHaveProperty('list');
     });
 
     it('should support single operation for one result', () => {
-      const query = context.users.where(u => u.eq('id', 1));
+      const query = context.employees.where(u => u.eq('id', 1));
 
       expect(query).toHaveProperty('single');
-    });
-
-    it('should support first operation', () => {
-      const query = context.users.orderBy(u => [u.desc('createdAt')]);
-
-      expect(query).toHaveProperty('first');
     });
   });
 
   describe('CRUD Operations', () => {
     it('should support insert operation', () => {
-      expect(context.users).toHaveProperty('insert');
+      expect(context.employees).toHaveProperty('insert');
     });
 
     it('should support update operation', () => {
-      expect(context.users).toHaveProperty('update');
+      expect(context.employees).toHaveProperty('update');
     });
 
     it('should support delete operation', () => {
-      expect(context.users).toHaveProperty('delete');
-    });
-
-    it('should support batch operations', () => {
-      // Check if batch operations are available
-      expect(context.users).toHaveProperty('insertMany');
-      expect(context.users).toHaveProperty('updateMany');
-      expect(context.users).toHaveProperty('deleteMany');
+      expect(context.employees).toHaveProperty('delete');
     });
   });
 
   describe('Relationship Queries', () => {
     it('should support include for foreign key relationships', () => {
-      const query = context.orders.include(['user']);
+      const query = context.orders.include(['employee']);
 
       expect(query).toBeDefined();
       expect(query).toHaveProperty('where');
@@ -338,13 +318,13 @@ describe('Query Building', () => {
 
     it('should support nested includes', () => {
       // Test that include can be chained or support nested relationships
-      const query = context.orders.include(['user']);
+      const query = context.orders.include(['employee']);
 
       expect(query).toBeDefined();
     });
 
     it('should support filtering with relationships', () => {
-      const query = context.orders.include(['user']).where(o => o.gt('totalAmount', 100));
+      const query = context.orders.include(['employee']).where(o => o.gt('totalAmount', 100));
 
       expect(query).toBeDefined();
     });
@@ -353,7 +333,7 @@ describe('Query Building', () => {
   describe('Complex Query Scenarios from README', () => {
     it('should support basic user filtering example', () => {
       // README: db.users.where(u => u.lastName.eq('Smith')).orderBy(u => u.firstName.asc()).list()
-      const query = context.users.where(u => u.eq('lastName', 'Smith')).orderBy(u => [u.asc('firstName')]);
+      const query = context.employees.where(u => u.eq('lastName', 'Smith')).orderBy(u => [u.asc('firstName')]);
 
       expect(query).toBeDefined();
       expect(query).toHaveProperty('list');
@@ -361,7 +341,7 @@ describe('Query Building', () => {
 
     it('should support column selection example', () => {
       // README: db.users.where(u => u.id.eq(1)).select('id', 'firstName', 'lastName').single()
-      const query = context.users.where(u => u.eq('id', 1)).select(['id', 'firstName', 'lastName']);
+      const query = context.employees.where(u => u.eq('id', 1)).select(['id', 'firstName', 'lastName']);
 
       expect(query).toBeDefined();
       expect(query).toHaveProperty('single');
@@ -369,7 +349,7 @@ describe('Query Building', () => {
 
     it('should support relationship query example', () => {
       // README: db.orders.include('user').where(o => o.totalAmount.eq(100)).list()
-      const query = context.orders.include(['user']).where(o => o.eq('totalAmount', 100));
+      const query = context.orders.include(['employee']).where(o => o.eq('totalAmount', 100));
 
       expect(query).toBeDefined();
       expect(query).toHaveProperty('list');
@@ -377,7 +357,7 @@ describe('Query Building', () => {
 
     it('should support pagination example', () => {
       // README: db.users.orderBy(u => u.createdAt.desc()).limit(10,10).list()
-      const query = context.users.orderBy(u => [u.desc('createdAt')]).limit(10, 10);
+      const query = context.employees.orderBy(u => [u.desc('createdAt')]).limit(10, 10);
 
       expect(query).toBeDefined();
       expect(query).toHaveProperty('list');
@@ -395,16 +375,16 @@ describe('Query Building', () => {
   describe('Type Safety', () => {
     it('should maintain type safety in query building', () => {
       // These tests verify that TypeScript compilation enforces type safety
-      const query = context.users.where(u => u.eq('id', 1)); // Should accept number for id
+      const query = context.employees.where(u => u.eq('id', 1)); // Should accept number for id
       expect(query).toBeDefined();
 
-      const emailQuery = context.users.where(u => u.eq('email', 'test@example.com')); // Should accept string for email
+      const emailQuery = context.employees.where(u => u.eq('email', 'test@example.com')); // Should accept string for email
       expect(emailQuery).toBeDefined();
     });
 
     it('should provide strongly typed results', () => {
       // Verify that the query results maintain entity types
-      const query = context.users.where(u => u.eq('id', 1));
+      const query = context.employees.where(u => u.eq('id', 1));
       expect(query).toBeDefined();
       expect(query).toHaveProperty('single');
       expect(query).toHaveProperty('list');

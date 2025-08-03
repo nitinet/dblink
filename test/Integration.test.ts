@@ -1,8 +1,8 @@
 import PostgreSql from 'dblink-pg';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import Order from './model/Order.js';
-import TestDbContext from './model/TestDbContext.js';
-import User from './model/User.js';
+import TestDbContext from './TestDbContext.js';
+import Employee from './model/Employee.js';
 
 // Database configuration for testing
 const TEST_DB_CONFIG = {
@@ -118,14 +118,11 @@ describe('DBLink Integration Tests - README Examples', () => {
   describe('Basic Setup and Configuration', () => {
     it('should create database context successfully', async () => {
       expect(db).toBeInstanceOf(TestDbContext);
-      expect(db.users).toBeDefined();
       expect(db.orders).toBeDefined();
-      expect(db.profiles).toBeDefined();
     });
 
     it('should initialize with proper entity mappings', async () => {
       expect(db.tableSetMap.size).toBeGreaterThan(0);
-      expect(db.tableSetMap.has(User)).toBe(true);
       expect(db.tableSetMap.has(Order)).toBe(true);
     });
   });
@@ -135,32 +132,30 @@ describe('DBLink Integration Tests - README Examples', () => {
       await createTestTables();
     });
 
-    it('should support finding a single user', async () => {
+    it('should support finding a single employee', async () => {
       // README: const user = await db.users.where(u => u.id.eq(1)).single();
-      const userQuery = db.users.where(u => u.eq('id', 1));
-      expect(userQuery).toBeDefined();
-      expect(userQuery).toHaveProperty('single');
+      const employeeQuery = db.employees.where(u => u.eq('id', 1));
+      expect(employeeQuery).toBeDefined();
+      expect(employeeQuery).toHaveProperty('single');
     });
 
-    it('should support finding users with filtering and ordering', async () => {
-      // README: const users = await db.users.where(u => u.lastName.eq('Smith')).orderBy(u => u.firstName.asc()).list();
-      const userQuery = db.users.where(u => u.eq('lastName', 'Smith')).orderBy(u => [u.asc('firstName')]);
+    it('should support finding employees with filtering and ordering', async () => {
+      const employeeQuery = db.employees.where(u => u.eq('lastName', 'Smith')).orderBy(u => [u.asc('firstName')]);
 
-      expect(userQuery).toBeDefined();
-      expect(userQuery).toHaveProperty('list');
+      expect(employeeQuery).toBeDefined();
+      expect(employeeQuery).toHaveProperty('list');
     });
 
     it('should support column selection', async () => {
-      // README: const userWithSelectedColumns = await db.users.where(u => u.id.eq(1)).select('id', 'firstName', 'lastName').single();
-      const userQuery = db.users.where(u => u.eq('id', 1)).select(['id', 'firstName', 'lastName']);
+      const employeeQuery = db.employees.where(u => u.eq('id', 1)).select(['id', 'firstName', 'lastName']);
 
-      expect(userQuery).toBeDefined();
-      expect(userQuery).toHaveProperty('single');
+      expect(employeeQuery).toBeDefined();
+      expect(employeeQuery).toHaveProperty('single');
     });
 
     it('should support relationship queries', async () => {
       // README: const ordersWithUsers = await db.orders.include('user').where(o => o.totalAmount.eq(100)).list();
-      const orderQuery = db.orders.include(['user']).where(o => o.eq('totalAmount', 100));
+      const orderQuery = db.orders.include(['employee']).where(o => o.eq('totalAmount', 100));
 
       expect(orderQuery).toBeDefined();
       expect(orderQuery).toHaveProperty('list');
@@ -168,7 +163,7 @@ describe('DBLink Integration Tests - README Examples', () => {
 
     it('should support pagination', async () => {
       // README: const page = await db.users.orderBy(u => u.createdAt.desc()).limit(10,10).list();
-      const pageQuery = db.users.orderBy(u => [u.desc('createdAt')]).limit(10, 10);
+      const pageQuery = db.employees.orderBy(u => [u.desc('createdAt')]).limit(10, 10);
 
       expect(pageQuery).toBeDefined();
       expect(pageQuery).toHaveProperty('list');
@@ -190,13 +185,13 @@ describe('DBLink Integration Tests - README Examples', () => {
 
     it('should support insert operations', async () => {
       // README example: Insert a new user
-      const newUser = new User();
-      newUser.firstName = 'John';
-      newUser.lastName = 'Doe';
-      newUser.email = 'john@example.com';
-      newUser.createdAt = new Date();
+      const newEmployee = new Employee();
+      newEmployee.firstName = 'John';
+      newEmployee.lastName = 'Doe';
+      newEmployee.email = 'john@example.com';
+      newEmployee.createdAt = new Date();
 
-      expect(db.users).toHaveProperty('insert');
+      expect(db.employees).toHaveProperty('insert');
 
       // Test that the insert method exists and can be called
       // In a real scenario, this would actually insert data
@@ -204,7 +199,7 @@ describe('DBLink Integration Tests - README Examples', () => {
 
     it('should support update operations', async () => {
       // README example shows update workflow
-      expect(db.users).toHaveProperty('update');
+      expect(db.employees).toHaveProperty('update');
 
       // The pattern would be:
       // 1. Find user: const userToUpdate = await db.users.where(u => u.id.eq(1)).single();
@@ -214,7 +209,7 @@ describe('DBLink Integration Tests - README Examples', () => {
 
     it('should support delete operations', async () => {
       // README example shows delete workflow
-      expect(db.users).toHaveProperty('delete');
+      expect(db.employees).toHaveProperty('delete');
 
       // The pattern would be:
       // 1. Find user: const userToDelete = await db.users.where(u => u.id.eq(2)).single();
@@ -229,7 +224,7 @@ describe('DBLink Integration Tests - README Examples', () => {
 
       expect(transactionContext).toBeInstanceOf(TestDbContext);
       expect(transactionContext).not.toBe(db);
-      expect(transactionContext.users).toBeDefined();
+      expect(transactionContext.employees).toBeDefined();
       expect(transactionContext.orders).toBeDefined();
 
       // Test commit and rollback methods exist
@@ -243,14 +238,14 @@ describe('DBLink Integration Tests - README Examples', () => {
       const transactionContext = await db.initTransaction();
 
       // Simulate multi-step transaction
-      const user = new User();
+      const user = new Employee();
       user.firstName = 'Transaction';
       user.lastName = 'Test';
       user.email = 'transaction@example.com';
       user.createdAt = new Date();
 
       // Should be able to perform operations within transaction
-      expect(transactionContext.users).toHaveProperty('insert');
+      expect(transactionContext.employees).toHaveProperty('insert');
       expect(transactionContext.orders).toHaveProperty('insert');
 
       // Should be able to commit
@@ -338,28 +333,28 @@ describe('DBLink Integration Tests - README Examples', () => {
   describe('Type Safety and Entity Relationships', () => {
     it('should maintain strong typing throughout query pipeline', () => {
       // Test that entity types are preserved
-      expect(db.users.getEntityType()).toBe(User);
+      expect(db.employees.getEntityType()).toBe(Employee);
       expect(db.orders.getEntityType()).toBe(Order);
 
       // Test that queries maintain type safety
-      const userQuery = db.users.where(u => u.eq('id', 1));
-      expect(userQuery).toBeDefined();
+      const employeeQuery = db.employees.where(u => u.eq('id', 1));
+      expect(employeeQuery).toBeDefined();
     });
 
     it('should support relationship navigation', () => {
       // Test that foreign key relationships are properly configured
-      const orderQuery = db.orders.include(['user']);
+      const orderQuery = db.orders.include(['employee']);
       expect(orderQuery).toBeDefined();
 
       // Verify that the Order entity has user relationship metadata
       const foreignKeyType = Reflect.getMetadata('dblink:foreign:type', Order.prototype, 'user');
-      expect(foreignKeyType).toBe(User);
+      expect(foreignKeyType).toBe(Employee);
     });
 
     it('should support complex query combinations', () => {
       // Test complex query building like what would be used in real applications
       const complexQuery = db.orders
-        .include(['user'])
+        .include(['employee'])
         .where(o => o.eq('totalAmount', 100))
         .orderBy(o => [o.desc('orderDate'), o.asc('totalAmount')])
         .limit(10);
@@ -409,7 +404,7 @@ describe('DBLink Integration Tests - README Examples', () => {
 
     it('should support pagination to limit memory usage', () => {
       // Test pagination functionality that helps with performance
-      const paginatedQuery = db.users.orderBy(u => [u.desc('createdAt')]).limit(100, 20); // Skip 100, take 20
+      const paginatedQuery = db.employees.orderBy(u => [u.desc('createdAt')]).limit(100, 20); // Skip 100, take 20
 
       expect(paginatedQuery).toBeDefined();
       expect(paginatedQuery).toHaveProperty('list');

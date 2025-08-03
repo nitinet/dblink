@@ -1,9 +1,8 @@
 import PostgreSql from 'dblink-pg';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import TableSet from '../src/collection/TableSet.js';
-import Profile from './model/Profile.js';
-import TestDbContext from './model/TestDbContext.js';
-import User from './model/User.js';
+import Employee from './model/Employee.js';
+import TestDbContext from './TestDbContext.js';
 
 const TEST_DB_CONFIG = {
   host: process.env.DB_HOST || 'localhost',
@@ -66,8 +65,7 @@ async function cleanupTestTables(context: TestDbContext) {
 
 describe('TableSet', () => {
   let context: TestDbContext;
-  let userTableSet: TableSet<User>;
-  let profileTableSet: TableSet<Profile>;
+  let employeeTableSet: TableSet<Employee>;
 
   beforeEach(async () => {
     const handler = new PostgreSql(TEST_DB_CONFIG);
@@ -78,8 +76,7 @@ describe('TableSet', () => {
 
     await createTestTables(context);
 
-    userTableSet = context.users;
-    profileTableSet = context.profiles;
+    employeeTableSet = context.employees;
   });
 
   afterEach(async () => {
@@ -95,48 +92,41 @@ describe('TableSet', () => {
 
   describe('Entity Mapping', () => {
     it('should correctly map entity types', () => {
-      expect(userTableSet.getEntityType()).toBe(User);
-      expect(profileTableSet.getEntityType()).toBe(Profile);
+      expect(employeeTableSet.getEntityType()).toBe(Employee);
     });
 
     it('should create correct table mappings', () => {
-      expect(userTableSet.dbSet.tableName).toBe('users');
-      expect(profileTableSet.dbSet.tableName).toBe('profiles');
+      expect(employeeTableSet.dbSet.tableName).toBe('employees');
     });
 
     it('should map column names correctly', () => {
       // Test that the DbSet has the correct field mappings
-      expect(userTableSet.dbSet.fieldMap.has('id')).toBe(true);
-      expect(userTableSet.dbSet.fieldMap.has('firstName')).toBe(true);
-      expect(userTableSet.dbSet.fieldMap.has('lastName')).toBe(true);
-      expect(userTableSet.dbSet.fieldMap.has('email')).toBe(true);
-      expect(userTableSet.dbSet.fieldMap.has('createdAt')).toBe(true);
+      expect(employeeTableSet.dbSet.fieldMap.has('id')).toBe(true);
+      expect(employeeTableSet.dbSet.fieldMap.has('firstName')).toBe(true);
+      expect(employeeTableSet.dbSet.fieldMap.has('lastName')).toBe(true);
+      expect(employeeTableSet.dbSet.fieldMap.has('email')).toBe(true);
+      expect(employeeTableSet.dbSet.fieldMap.has('createdAt')).toBe(true);
 
       // Check column name mappings
-      expect(userTableSet.dbSet.fieldMap.get('firstName')?.colName).toBe('first_name');
-      expect(userTableSet.dbSet.fieldMap.get('lastName')?.colName).toBe('last_name');
-      expect(userTableSet.dbSet.fieldMap.get('createdAt')?.colName).toBe('created_at');
-      expect(userTableSet.dbSet.fieldMap.get('email')?.colName).toBe('email');
+      expect(employeeTableSet.dbSet.fieldMap.get('firstName')?.colName).toBe('first_name');
+      expect(employeeTableSet.dbSet.fieldMap.get('lastName')?.colName).toBe('last_name');
+      expect(employeeTableSet.dbSet.fieldMap.get('createdAt')?.colName).toBe('created_at');
+      expect(employeeTableSet.dbSet.fieldMap.get('email')?.colName).toBe('email');
     });
 
     it('should identify primary key fields', () => {
-      const idField = userTableSet.dbSet.fieldMap.get('id');
+      const idField = employeeTableSet.dbSet.fieldMap.get('id');
       expect(idField?.primaryKey).toBe(true);
-
-      const profileIdField = profileTableSet.dbSet.fieldMap.get('id');
-      expect(profileIdField?.primaryKey).toBe(true);
     });
   });
 
   describe('Context Integration', () => {
     it('should be bound to context after initialization', () => {
-      expect(userTableSet.context).toBe(context);
-      expect(profileTableSet.context).toBe(context);
+      expect(employeeTableSet.context).toBe(context);
     });
 
     it('should be registered in context tableSetMap', () => {
-      expect(context.tableSetMap.get(User)).toBe(userTableSet);
-      expect(context.tableSetMap.get(Profile)).toBe(profileTableSet);
+      expect(context.tableSetMap.get(Employee)).toBe(employeeTableSet);
     });
   });
 
@@ -144,27 +134,27 @@ describe('TableSet', () => {
     it('should support basic query structure', () => {
       // Since we can't easily test the full query building without more mocking,
       // we test that the basic structure is in place
-      expect(userTableSet).toHaveProperty('where');
-      expect(userTableSet).toHaveProperty('orderBy');
-      expect(userTableSet).toHaveProperty('select');
-      expect(userTableSet).toHaveProperty('include');
-      expect(userTableSet).toHaveProperty('limit');
+      expect(employeeTableSet).toHaveProperty('where');
+      expect(employeeTableSet).toHaveProperty('orderBy');
+      expect(employeeTableSet).toHaveProperty('select');
+      expect(employeeTableSet).toHaveProperty('include');
+      expect(employeeTableSet).toHaveProperty('limit');
     });
 
     it('should support CRUD operations interface', () => {
       // Test that CRUD methods exist (implementation would require database)
-      expect(userTableSet).toHaveProperty('insert');
-      expect(userTableSet).toHaveProperty('update');
-      expect(userTableSet).toHaveProperty('delete');
+      expect(employeeTableSet).toHaveProperty('insert');
+      expect(employeeTableSet).toHaveProperty('update');
+      expect(employeeTableSet).toHaveProperty('delete');
     });
 
     it('should support aggregation operations', () => {
-      expect(userTableSet).toHaveProperty('count');
+      expect(employeeTableSet).toHaveProperty('count');
     });
 
     it('should support result retrieval methods', () => {
-      expect(userTableSet).toHaveProperty('list');
-      expect(userTableSet).toHaveProperty('single');
+      expect(employeeTableSet).toHaveProperty('list');
+      expect(employeeTableSet).toHaveProperty('single');
     });
   });
 
@@ -178,24 +168,23 @@ describe('TableSet', () => {
 
   describe('Decorator Integration', () => {
     it('should respect @Table decorator for table naming', () => {
-      expect(userTableSet.dbSet.tableName).toBe('users');
-      expect(profileTableSet.dbSet.tableName).toBe('profiles');
+      expect(employeeTableSet.dbSet.tableName).toBe('employees');
     });
 
     it('should respect @Column decorator for column mapping', () => {
-      const firstNameField = userTableSet.dbSet.fieldMap.get('firstName');
+      const firstNameField = employeeTableSet.dbSet.fieldMap.get('firstName');
       expect(firstNameField?.colName).toBe('first_name');
 
-      const emailField = userTableSet.dbSet.fieldMap.get('email');
+      const emailField = employeeTableSet.dbSet.fieldMap.get('email');
       expect(emailField?.colName).toBe('email'); // Should default to property name
     });
 
     it('should respect @Id decorator for primary key identification', () => {
-      const idField = userTableSet.dbSet.fieldMap.get('id');
+      const idField = employeeTableSet.dbSet.fieldMap.get('id');
       expect(idField?.primaryKey).toBe(true);
 
       // Non-primary key fields should not be marked as primary
-      const emailField = userTableSet.dbSet.fieldMap.get('email');
+      const emailField = employeeTableSet.dbSet.fieldMap.get('email');
       expect(emailField?.primaryKey).toBe(false);
     });
   });
@@ -203,8 +192,7 @@ describe('TableSet', () => {
   describe('Type Safety', () => {
     it('should maintain type safety with generic entity type', () => {
       // These tests verify TypeScript compilation more than runtime behavior
-      expect(userTableSet.getEntityType()).toBe(User);
-      expect(profileTableSet.getEntityType()).toBe(Profile);
+      expect(employeeTableSet.getEntityType()).toBe(Employee);
     });
   });
 
@@ -212,9 +200,9 @@ describe('TableSet', () => {
     it('should support the basic usage patterns from README', () => {
       // Test that the TableSet supports the patterns shown in README examples
       // Note: These would need actual implementation to execute queries
-      expect(userTableSet.where).toBeDefined();
-      expect(userTableSet.orderBy).toBeDefined();
-      expect(userTableSet.select).toBeDefined();
+      expect(employeeTableSet.where).toBeDefined();
+      expect(employeeTableSet.orderBy).toBeDefined();
+      expect(employeeTableSet.select).toBeDefined();
     });
 
     it('should support relationship queries structure', () => {
@@ -224,7 +212,7 @@ describe('TableSet', () => {
 
     it('should support pagination structure', () => {
       // Limit functionality
-      expect(userTableSet.limit).toBeDefined();
+      expect(employeeTableSet.limit).toBeDefined();
     });
   });
 });

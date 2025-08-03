@@ -7,11 +7,20 @@ class Employee {
   @decorators.Id
   id!: number;
 
-  @decorators.Column('department_id')
-  departmentId!: number;
+  @decorators.Column('first_name')
+  firstName!: string;
+
+  @decorators.Column('last_name')
+  lastName!: string;
 
   @decorators.Column()
-  name!: string;
+  email!: string;
+
+  @decorators.Column('created_at')
+  createdAt!: Date;
+
+  @decorators.Column('department_id')
+  departmentId!: number;
 
   @decorators.Foreign(Department, (builder, parent) => builder.eq('id', (parent as Employee).departmentId))
   department!: Department;

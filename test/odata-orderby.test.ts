@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { OrderByParser, ODataOrderByParseError, parseOrderBy } from '../src/odata-parser/orderByParser.js';
+import { OrderByParser, parseOrderBy } from '../src/odata-parser/orderByParser.js';
+import { ODataOrderByParseError } from '../src/odata-parser/types.js';
 
 describe('OData OrderBy Parser', () => {
   let parser: OrderByParser;

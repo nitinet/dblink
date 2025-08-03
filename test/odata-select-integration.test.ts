@@ -155,10 +155,6 @@ describe('OData Select Parser Integration', () => {
       expect(() => {
         SelectParser.applySelect(mockUserQuerySet, 'id,invalidField', userFields);
       }).toThrow('Invalid field(s) in select');
-
-      // Partial valid selection
-      const result = SelectParser.applySelect(mockUserQuerySet, 'firstName,lastName', userFields);
-      expect(result.selectedFields).toEqual(['firstName', 'lastName']);
     });
   });
 

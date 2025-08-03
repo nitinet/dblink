@@ -1,16 +1,12 @@
-import { describe, it, expect } from 'vitest';
 import 'reflect-metadata';
-
-// Import all the core functionality
+import { describe, expect, it } from 'vitest';
 import Context from '../src/Context.js';
 import TableSet from '../src/collection/TableSet.js';
+import { COLUMN_KEY, FOREIGN_KEY_TYPE, ID_KEY, TABLE_KEY } from '../src/decorators/Constants.js';
 import * as decorators from '../src/decorators/index.js';
-import { TABLE_KEY, COLUMN_KEY, ID_KEY, FOREIGN_KEY_TYPE } from '../src/decorators/Constants.js';
-
-// Import test models
-import User from './model/User.js';
+import Employee from './model/Employee.js';
 import Order from './model/Order.js';
-import TestDbContext from './model/TestDbContext.js';
+import TestDbContext from './TestDbContext.js';
 
 /**
  * This test demonstrates the complete DBLink workflow as described in the README
@@ -21,20 +17,20 @@ describe('DBLink Complete Workflow - README Validation', () => {
     it('should support entity definition with decorators as shown in README', () => {
       // This validates the exact entity structure from the README
 
-      // Verify User entity structure matches README
-      expect(Reflect.getMetadata(TABLE_KEY, User)).toBe('users');
-      expect(Reflect.getMetadata(COLUMN_KEY, User.prototype, 'firstName')).toBe('first_name');
-      expect(Reflect.getMetadata(COLUMN_KEY, User.prototype, 'lastName')).toBe('last_name');
-      expect(Reflect.getMetadata(COLUMN_KEY, User.prototype, 'email')).toBe('email');
-      expect(Reflect.getMetadata(COLUMN_KEY, User.prototype, 'createdAt')).toBe('created_at');
-      expect(Reflect.getMetadata(ID_KEY, User.prototype, 'id')).toBe(true);
+      // Verify Employee entity structure matches README
+      expect(Reflect.getMetadata(TABLE_KEY, Employee)).toBe('employees');
+      expect(Reflect.getMetadata(COLUMN_KEY, Employee.prototype, 'firstName')).toBe('first_name');
+      expect(Reflect.getMetadata(COLUMN_KEY, Employee.prototype, 'lastName')).toBe('last_name');
+      expect(Reflect.getMetadata(COLUMN_KEY, Employee.prototype, 'email')).toBe('email');
+      expect(Reflect.getMetadata(COLUMN_KEY, Employee.prototype, 'createdAt')).toBe('created_at');
+      expect(Reflect.getMetadata(ID_KEY, Employee.prototype, 'id')).toBe(true);
 
       // Verify Order entity structure matches README
       expect(Reflect.getMetadata(TABLE_KEY, Order)).toBe('orders');
       expect(Reflect.getMetadata(COLUMN_KEY, Order.prototype, 'userId')).toBe('user_id');
       expect(Reflect.getMetadata(COLUMN_KEY, Order.prototype, 'orderDate')).toBe('order_date');
       expect(Reflect.getMetadata(COLUMN_KEY, Order.prototype, 'totalAmount')).toBe('total_amount');
-      expect(Reflect.getMetadata(FOREIGN_KEY_TYPE, Order.prototype, 'user')).toBe(User);
+      expect(Reflect.getMetadata(FOREIGN_KEY_TYPE, Order.prototype, 'employee')).toBe(Employee);
     });
 
     it('should support all decorator types mentioned in README', () => {
@@ -67,9 +63,9 @@ describe('DBLink Complete Workflow - README Validation', () => {
       };
 
       const context = new TestDbContext(mockHandler as any);
-      expect(context.users).toBeInstanceOf(TableSet);
+      expect(context.employees).toBeInstanceOf(TableSet);
       expect(context.orders).toBeInstanceOf(TableSet);
-      expect(context.users.getEntityType()).toBe(User);
+      expect(context.employees.getEntityType()).toBe(Employee);
       expect(context.orders.getEntityType()).toBe(Order);
     });
 
@@ -90,7 +86,7 @@ describe('DBLink Complete Workflow - README Validation', () => {
       await expect(context.init()).resolves.not.toThrow();
 
       // Verify TableSets are bound to context after init
-      expect(context.users.context).toBe(context);
+      expect(context.employees.context).toBe(context);
       expect(context.orders.context).toBe(context);
     });
   });
@@ -109,29 +105,29 @@ describe('DBLink Complete Workflow - README Validation', () => {
 
       const context = new TestDbContext(mockHandler as any);
 
-      // README: Find a single user
-      // const user = await db.users.where(u => u.id.eq(1)).single();
-      const singleUserQuery = context.users.where(u => u.eq('id', 1));
-      expect(singleUserQuery).toHaveProperty('single');
+      // README: Find a single employee
+      // const employee = await db.employees.where(u => u.id.eq(1)).single();
+      const singleEmployeeQuery = context.employees.where(u => u.eq('id', 1));
+      expect(singleEmployeeQuery).toHaveProperty('single');
 
-      // README: Find all users with filtering and ordering
-      // const users = await db.users.where(u => u.lastName.eq('Smith')).orderBy(u => u.firstName.asc()).list();
-      const filteredUsersQuery = context.users.where(u => u.eq('lastName', 'Smith')).orderBy(u => [u.asc('firstName')]);
-      expect(filteredUsersQuery).toHaveProperty('list');
+      // README: Find all employees with filtering and ordering
+      // const employees = await db.employees.where(u => u.lastName.eq('Smith')).orderBy(u => u.firstName.asc()).list();
+      const filteredEmployeesQuery = context.employees.where(u => u.eq('lastName', 'Smith')).orderBy(u => [u.asc('firstName')]);
+      expect(filteredEmployeesQuery).toHaveProperty('list');
 
-      // README: Find user with selected columns
-      // const userWithSelectedColumns = await db.users.where(u => u.id.eq(1)).select('id', 'firstName', 'lastName').single();
-      const selectQuery = context.users.where(u => u.eq('id', 1)).select(['id', 'firstName', 'lastName']);
+      // README: Find employee with selected columns
+      // const employeeWithSelectedColumns = await db.employees.where(u => u.id.eq(1)).select('id', 'firstName', 'lastName').single();
+      const selectQuery = context.employees.where(u => u.eq('id', 1)).select(['id', 'firstName', 'lastName']);
       expect(selectQuery).toHaveProperty('single');
 
       // README: Relationship queries
-      // const ordersWithUsers = await db.orders.include('user').where(o => o.totalAmount.eq(100)).list();
-      const relationshipQuery = context.orders.include(['user']).where(o => o.eq('totalAmount', 100));
+      // const ordersWithEmployees = await db.orders.include('employee').where(o => o.totalAmount.eq(100)).list();
+      const relationshipQuery = context.orders.include(['employee']).where(o => o.eq('totalAmount', 100));
       expect(relationshipQuery).toHaveProperty('list');
 
       // README: Pagination
       // const page = await db.users.orderBy(u => u.createdAt.desc()).limit(10,10).list();
-      const paginationQuery = context.users.orderBy(u => [u.desc('createdAt')]).limit(10, 10);
+      const paginationQuery = context.employees.orderBy(u => [u.desc('createdAt')]).limit(10, 10);
       expect(paginationQuery).toHaveProperty('list');
 
       // README: Aggregations
@@ -156,28 +152,28 @@ describe('DBLink Complete Workflow - README Validation', () => {
       const context = new TestDbContext(mockHandler as any);
 
       // README: Insert operation
-      // await db.users.insert(newUser);
-      expect(context.users).toHaveProperty('insert');
+      // await db.employees.insert(newEmployee);
+      expect(context.employees).toHaveProperty('insert');
 
       // README: Update operation
-      // await db.users.update(userToUpdate, 'email');
-      expect(context.users).toHaveProperty('update');
+      // await db.employees.update(employeeToUpdate, 'email');
+      expect(context.employees).toHaveProperty('update');
 
       // README: Delete operation
-      // await db.users.delete(userToDelete);
-      expect(context.users).toHaveProperty('delete');
+      // await db.employees.delete(employeeToDelete);
+      expect(context.employees).toHaveProperty('delete');
 
       // Verify entity creation follows README pattern
-      const newUser = new User();
-      newUser.firstName = 'John';
-      newUser.lastName = 'Doe';
-      newUser.email = 'john@example.com';
-      newUser.createdAt = new Date();
+      const newEmployee = new Employee();
+      newEmployee.firstName = 'John';
+      newEmployee.lastName = 'Doe';
+      newEmployee.email = 'john@example.com';
+      newEmployee.createdAt = new Date();
 
-      expect(newUser).toBeInstanceOf(User);
-      expect(newUser.firstName).toBe('John');
-      expect(newUser.lastName).toBe('Doe');
-      expect(newUser.email).toBe('john@example.com');
+      expect(newEmployee).toBeInstanceOf(Employee);
+      expect(newEmployee.firstName).toBe('John');
+      expect(newEmployee.lastName).toBe('Doe');
+      expect(newEmployee.email).toBe('john@example.com');
     });
   });
 
@@ -261,7 +257,7 @@ describe('DBLink Complete Workflow - README Validation', () => {
       const context = new TestDbContext(mockHandler as any);
 
       // Test that operators exist in where clause builder
-      context.users.where(builder => {
+      context.employees.where(builder => {
         // Comparison operators
         expect(builder.eq).toBeDefined();
         expect(builder.neq).toBeDefined();
@@ -280,7 +276,7 @@ describe('DBLink Complete Workflow - README Validation', () => {
       });
 
       // Test order by operators
-      context.users.orderBy(builder => {
+      context.employees.orderBy(builder => {
         expect(builder.asc).toBeDefined();
         expect(builder.desc).toBeDefined();
         return [builder.asc('id')];
@@ -317,30 +313,30 @@ describe('DBLink Complete Workflow - README Validation', () => {
       await db.init();
 
       // 3. Verify entity setup (README Step 1)
-      expect(db.users.getEntityType()).toBe(User);
+      expect(db.employees.getEntityType()).toBe(Employee);
       expect(db.orders.getEntityType()).toBe(Order);
 
       // 4. Test query building (README Step 3)
-      const userQuery = db.users
+      const employeeQuery = db.employees
         .where(u => u.eq('lastName', 'Smith'))
         .orderBy(u => [u.asc('firstName')])
         .limit(10);
 
-      expect(userQuery).toBeDefined();
-      expect(userQuery).toHaveProperty('list');
-      expect(userQuery).toHaveProperty('single');
-      expect(userQuery).toHaveProperty('count');
+      expect(employeeQuery).toBeDefined();
+      expect(employeeQuery).toHaveProperty('list');
+      expect(employeeQuery).toHaveProperty('single');
+      expect(employeeQuery).toHaveProperty('count');
 
       // 5. Test relationship queries (README Step 3)
-      const orderQuery = db.orders.include(['user']).where(o => o.eq('totalAmount', 100));
+      const orderQuery = db.orders.include(['employee']).where(o => o.eq('totalAmount', 100));
 
       expect(orderQuery).toBeDefined();
       expect(orderQuery).toHaveProperty('list');
 
       // 6. Test CRUD operations (README Step 4)
-      expect(db.users).toHaveProperty('insert');
-      expect(db.users).toHaveProperty('update');
-      expect(db.users).toHaveProperty('delete');
+      expect(db.employees).toHaveProperty('insert');
+      expect(db.employees).toHaveProperty('update');
+      expect(db.employees).toHaveProperty('delete');
 
       // 7. Test raw queries (README Advanced)
       expect(db).toHaveProperty('run');
