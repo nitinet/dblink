@@ -58,7 +58,7 @@ class QuerySet<T extends object> extends IQuerySet<T> {
   }
 
   initColumnFieldMap() {
-    if (this.columnFieldMap.size == 0) return;
+    if (this.columnFieldMap.size !== 0) return;
 
     const fields = Reflect.getMetadata(TABLE_COLUMN_KEYS, this.EntityType.prototype) as (keyof T)[];
     fields.forEach(field => {
