@@ -11,7 +11,6 @@ export function array(...args: unknown[]): Expression {
 }
 
 export function cast(expr: Expression, val2: string): Expression {
-  const cast = new Expression('?');
-  cast.args = cast.args.concat(val2);
+  const cast = new Expression(val2);
   return new Expression(null, Operator.Cast, expr, cast);
 }
