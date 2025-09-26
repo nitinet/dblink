@@ -272,6 +272,42 @@ class WhereExprBuilder<T> extends BaseExprBuilder<T> {
   average<K extends KeyOf<T>>(propName: K): Expression {
     return new Expression(null, Operator.Avg, this._expr(propName));
   }
+
+  /**
+   * Creates an contains (@>) comparison expression
+   *
+   * @template {KeyOf<T>} K - The property key type
+   * @param {K} propName - The property name to compare
+   * @param {OperandType<T, K>} operand - The value to compare against
+   * @returns {Expression} - The resulting SQL comparison expression
+   */
+  contains<K extends KeyOf<T>>(propName: K, operand: OperandType<T, K>): Expression {
+    return new Expression(null, Operator.Contains, this._expr(propName), this._argExp(operand));
+  }
+
+  /**
+   * Creates an contained by (<@) comparison expression
+   *
+   * @template {KeyOf<T>} K - The property key type
+   * @param {K} propName - The property name to compare
+   * @param {OperandType<T, K>} operand - The value to compare against
+   * @returns {Expression} - The resulting SQL comparison expression
+   */
+  containedBy<K extends KeyOf<T>>(propName: K, operand: OperandType<T, K>): Expression {
+    return new Expression(null, Operator.ContainedBy, this._expr(propName), this._argExp(operand));
+  }
+
+  /**
+   * Creates an overlap (&&) comparison expression
+   *
+   * @template {KeyOf<T>} K - The property key type
+   * @param {K} propName - The property name to compare
+   * @param {OperandType<T, K>} operand - The value to compare against
+   * @returns {Expression} - The resulting SQL comparison expression
+   */
+  overlap<K extends KeyOf<T>>(propName: K, operand: OperandType<T, K>): Expression {
+    return new Expression(null, Operator.Overlap, this._expr(propName), this._argExp(operand));
+  }
 }
 
 export default WhereExprBuilder;
