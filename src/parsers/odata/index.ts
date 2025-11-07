@@ -5,7 +5,7 @@
  * for use with the DBLink ORM. It includes parsers for all major OData query
  * operations that translate OData syntax into DBLink-compatible expressions.
  *
- * @module odata-parser
+ * @module parsers/odata
  */
 
 import FilterParser from './filterParser.js';

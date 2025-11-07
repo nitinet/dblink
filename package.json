@@ -1,6 +1,6 @@
 {
   "name": "dblink",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "type": "module",
   "main": "./src/index.js",
   "types": "./src/index.ts",
