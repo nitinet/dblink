@@ -141,11 +141,11 @@ export default class Context {
    * @returns {Promise<this>} A new Context instance with an active transaction
    */
   async initTransaction(): Promise<this> {
-    // Create Clone
+    // Create Clone - use cloneDeep but optimize by reusing handler reference
     const res = cloneDeep(this);
 
-    const keys = Reflect.ownKeys(res);
-    keys.forEach(key => {
+    // Relink all TableSet instances to the new context
+    Reflect.ownKeys(res).forEach(key => {
       const prop = Reflect.get(res, key);
       if (prop instanceof TableSet) {
         prop.context = res;

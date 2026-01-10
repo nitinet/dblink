@@ -69,6 +69,20 @@ class QuerySet<T extends object> extends IQuerySet<T> {
     });
   }
 
+  /**
+   * Helper to create field-to-column map
+   */
+  private getFieldColumnMap(): Map<keyof T, string> {
+    return new Map(Array.from(this.dbSet.fieldMap.entries()).map(([key, value]) => [key, value.colName])) as Map<keyof T, string>;
+  }
+
+  /**
+   * Helper to validate if expression is valid and non-empty
+   */
+  private isValidExpression(expr: sql.Expression | null | undefined): expr is sql.Expression {
+    return expr instanceof sql.Expression && expr.exps.length > 0;
+  }
+
   // Select Functions
   /**
    * Prepare select statement
@@ -101,9 +115,10 @@ class QuerySet<T extends object> extends IQuerySet<T> {
    */
   async count(): Promise<number> {
     const countStmt = cloneDeep(this.stat);
+    countStmt.command = sql.types.Command.SELECT;
     countStmt.columns = [new sql.Expression('count(1) as count')];
-    countStmt.groupBy.length = 0;
-    countStmt.orderBy.length = 0;
+    countStmt.groupBy = [];
+    countStmt.orderBy = [];
     countStmt.limit = new sql.Expression();
     const countResult = await this.context.runStatement(countStmt);
     return countResult.rows[0]['count'] as number;
@@ -190,18 +205,19 @@ class QuerySet<T extends object> extends IQuerySet<T> {
   /**
    * Get Queryable Select object with custom Type
    *
-   * @param {(keyof T)[]} columnKeys
-   * @returns {QuerySet<U>}
+   * @template K
+   * @param {K[]} keys
+   * @returns {QuerySet<Pick<T, K>>}
    */
-  select(fields: (keyof T)[]): this {
-    fields.forEach(field => {
+  select<K extends keyof T>(keys: K[]): QuerySet<Pick<T, K>> {
+    keys.forEach(field => {
       const fieldMapping = this.dbSet.fieldMap.get(field as string);
       if (fieldMapping) {
         this.columnFieldMap.set(fieldMapping.colName, field);
       }
     });
 
-    return this;
+    return this as unknown as QuerySet<Pick<T, K>>;
   }
 
   /**
@@ -224,10 +240,10 @@ class QuerySet<T extends object> extends IQuerySet<T> {
    * @returns {this}
    */
   where(param: exprBuilder.types.IWhereFunc<exprBuilder.WhereExprBuilder<T>>, ...args: unknown[]): this {
-    const fieldColumnMap = new Map(Array.from(this.dbSet.fieldMap.entries()).map(([key, value]) => [key, value.colName])) as Map<keyof T, string>;
+    const fieldColumnMap = this.getFieldColumnMap();
     const eb = new exprBuilder.WhereExprBuilder<T>(fieldColumnMap);
     const res = param(eb, args);
-    if (res && res instanceof sql.Expression && res.exps.length > 0) {
+    if (this.isValidExpression(res)) {
       this.stat.where = this.stat.where.add(res);
     }
     return this;
@@ -240,12 +256,12 @@ class QuerySet<T extends object> extends IQuerySet<T> {
    * @returns {this}
    */
   groupBy(param: exprBuilder.types.IArrFieldFunc<exprBuilder.GroupExprBuilder<T>>): this {
-    const fieldColumnMap = new Map(Array.from(this.dbSet.fieldMap.entries()).map(([key, value]) => [key, value.colName])) as Map<keyof T, string>;
+    const fieldColumnMap = this.getFieldColumnMap();
     const eb = new exprBuilder.GroupExprBuilder<T>(fieldColumnMap);
     const res = param(eb);
     if (res && Array.isArray(res)) {
       res.forEach(expr => {
-        if (expr instanceof sql.Expression && expr.exps.length > 0) {
+        if (this.isValidExpression(expr)) {
           this.stat.groupBy.push(expr);
         }
       });
@@ -260,13 +276,13 @@ class QuerySet<T extends object> extends IQuerySet<T> {
    * @returns {this}
    */
   orderBy(param: exprBuilder.types.IArrFieldFunc<exprBuilder.OrderExprBuilder<T>>): this {
-    const fieldColumnMap = new Map(Array.from(this.dbSet.fieldMap.entries()).map(([key, value]) => [key, value.colName])) as Map<keyof T, string>;
+    const fieldColumnMap = this.getFieldColumnMap();
     const eb = new exprBuilder.OrderExprBuilder<T>(fieldColumnMap);
     const res = param(eb);
     if (res && Array.isArray(res)) {
-      res.forEach(a => {
-        if (a instanceof sql.Expression && a.exps.length > 0) {
-          this.stat.orderBy.push(a);
+      res.forEach(expr => {
+        if (this.isValidExpression(expr)) {
+          this.stat.orderBy.push(expr);
         }
       });
     }
@@ -335,21 +351,19 @@ class QuerySet<T extends object> extends IQuerySet<T> {
   join<U extends object>(joinSet: IQuerySet<U>, param: IForeignFunc<exprBuilder.WhereExprBuilder<T>, exprBuilder.BaseExprBuilder<U>>, joinType?: sql.types.Join): JoinQuerySet<T, U> {
     joinType = joinType ?? sql.types.Join.InnerJoin;
 
-    let temp: sql.Expression | null = null;
-    if (param && param instanceof Function) {
-      const mainFieldColumnMap = new Map(Array.from(this.columnFieldMap.entries()).map(([key, value]) => [value, key]));
-      const mainObj = new exprBuilder.WhereExprBuilder<T>(mainFieldColumnMap);
+    this.initColumnFieldMap();
+    const mainFieldColumnMap = new Map(Array.from(this.columnFieldMap.entries()).map(([key, value]) => [value, key]));
+    const mainObj = new exprBuilder.WhereExprBuilder<T>(mainFieldColumnMap);
 
-      const joinFieldColumnMap = new Map(Array.from(joinSet.columnFieldMap.entries()).map(([key, value]) => [value, key]));
-      const joinObj = new exprBuilder.BaseExprBuilder(joinFieldColumnMap);
-      temp = param(mainObj, joinObj);
-    }
+    joinSet.initColumnFieldMap();
+    const joinFieldColumnMap = new Map(Array.from(joinSet.columnFieldMap.entries()).map(([key, value]) => [value, key]));
+    const joinObj = new exprBuilder.BaseExprBuilder(joinFieldColumnMap);
 
-    if (!(temp && temp instanceof sql.Expression && temp.exps.length > 0)) throw new Error('Invalid Join');
+    const onExpr = param(mainObj, joinObj);
 
-    const joinQuerySet = new JoinQuerySet(this.context, joinType, this, joinSet, temp);
+    if (!(onExpr instanceof sql.Expression && onExpr.exps.length > 0)) throw new Error('Invalid Join');
 
-    return joinQuerySet;
+    return new JoinQuerySet(this.context, joinType, this, joinSet, onExpr);
   }
 }
 

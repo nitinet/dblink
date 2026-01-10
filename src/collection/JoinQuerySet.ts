@@ -39,7 +39,7 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
   }
 
   initColumnFieldMap() {
-    if (this.columnFieldMap.size == 0) return;
+    if (this.columnFieldMap.size > 0) return;
 
     this.leftQuerySet.initColumnFieldMap();
     this.leftQuerySet.columnFieldMap.forEach((field, colName) => {
@@ -51,7 +51,20 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
       this.columnFieldMap.set(colName, field);
     });
   }
+  /**
+   * Helper to create field-to-column map (inverted from columnFieldMap)
+   */
+  private getFieldColumnMap(): Map<keyof (T & U), string> {
+    this.initColumnFieldMap();
+    return new Map(Array.from(this.columnFieldMap.entries()).map(([key, value]) => [value, key])) as Map<keyof (T & U), string>;
+  }
 
+  /**
+   * Helper to validate if expression is valid and non-empty
+   */
+  private isValidExpression(expr: sql.Expression | null): expr is sql.Expression {
+    return expr instanceof sql.Expression && expr.exps.length > 0;
+  }
   // Select Functions
   /**
    * Prepare select statement
@@ -90,9 +103,10 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
    */
   async count(): Promise<number> {
     const countStmt = cloneDeep(this.stat);
+    countStmt.command = sql.types.Command.SELECT;
     countStmt.columns = [new sql.Expression('count(1) as count')];
-    countStmt.groupBy.length = 0;
-    countStmt.orderBy.length = 0;
+    countStmt.groupBy = [];
+    countStmt.orderBy = [];
     countStmt.limit = new sql.Expression();
     const countResult = await this.context.runStatement(countStmt);
     return countResult.rows[0]['count'] as number;
@@ -151,21 +165,22 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
   /**
    * Get Queryable Select object with custom Type
    *
-   * @param {(keyof (T & U))[]} columnKeys
-   * @returns {JoinQuerySet<U>}
+   * @template K
+   * @param {K[]} keys
+   * @returns {JoinQuerySet<Pick<T & U, K>>}
    */
-  select(fields: (keyof (T & U))[]): this {
+  select<K extends keyof (T & U)>(keys: K[]): IQuerySet<Pick<T & U, K>> {
     this.leftQuerySet.initColumnFieldMap();
     this.leftQuerySet.columnFieldMap.forEach((field, colName) => {
-      if (fields.includes(field)) this.columnFieldMap.set(colName, field);
+      if (keys.includes(field as K)) this.columnFieldMap.set(colName, field);
     });
 
     this.rightQuerySet.initColumnFieldMap();
     this.rightQuerySet.columnFieldMap.forEach((field, colName) => {
-      if (fields.includes(field)) this.columnFieldMap.set(colName, field);
+      if (keys.includes(field as K)) this.columnFieldMap.set(colName, field);
     });
 
-    return this;
+    return this as unknown as IQuerySet<Pick<T & U, K>>;
   }
 
   // Conditional Functions
@@ -177,10 +192,10 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
    * @returns {this}
    */
   where(param: exprBuilder.types.IWhereFunc<exprBuilder.WhereExprBuilder<T & U>>, ...args: unknown[]): this {
-    const fieldColumnMap = new Map(Array.from(this.columnFieldMap.entries()).map(([key, value]) => [value, key])) as Map<keyof (T & U), string>;
+    const fieldColumnMap = this.getFieldColumnMap();
     const eb = new exprBuilder.WhereExprBuilder<T & U>(fieldColumnMap);
     const res = param(eb, args);
-    if (res && res instanceof sql.Expression && res.exps.length > 0) {
+    if (this.isValidExpression(res)) {
       this.stat.where = this.stat.where.add(res);
     }
     return this;
@@ -193,12 +208,12 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
    * @returns {this}
    */
   groupBy(param: exprBuilder.types.IArrFieldFunc<exprBuilder.GroupExprBuilder<T & U>>): this {
-    const fieldColumnMap = new Map(Array.from(this.columnFieldMap.entries()).map(([key, value]) => [value, key])) as Map<keyof (T & U), string>;
+    const fieldColumnMap = this.getFieldColumnMap();
     const eb = new exprBuilder.GroupExprBuilder<T & U>(fieldColumnMap);
     const res = param(eb);
     if (res && Array.isArray(res)) {
       res.forEach(expr => {
-        if (expr instanceof sql.Expression && expr.exps.length > 0) {
+        if (this.isValidExpression(expr)) {
           this.stat.groupBy.push(expr);
         }
       });
@@ -213,13 +228,13 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
    * @returns {this}
    */
   orderBy(param: exprBuilder.types.IArrFieldFunc<exprBuilder.OrderExprBuilder<T & U>>): this {
-    const fieldColumnMap = new Map(Array.from(this.columnFieldMap.entries()).map(([key, value]) => [value, key])) as Map<keyof (T & U), string>;
+    const fieldColumnMap = this.getFieldColumnMap();
     const eb = new exprBuilder.OrderExprBuilder<T & U>(fieldColumnMap);
     const res = param(eb);
     if (res && Array.isArray(res)) {
-      res.forEach(a => {
-        if (a instanceof sql.Expression && a.exps.length > 0) {
-          this.stat.orderBy.push(a);
+      res.forEach(expr => {
+        if (this.isValidExpression(expr)) {
+          this.stat.orderBy.push(expr);
         }
       });
     }
@@ -245,21 +260,18 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
   join<A extends object>(joinSet: IQuerySet<A>, param: IForeignFunc<exprBuilder.WhereExprBuilder<T & U>, exprBuilder.BaseExprBuilder<A>>, joinType?: sql.types.Join): JoinQuerySet<T & U, A> {
     joinType = joinType ?? sql.types.Join.InnerJoin;
 
-    let temp: sql.Expression | null = null;
-    if (param && param instanceof Function) {
-      const mainFieldColumnMap = new Map(Array.from(this.columnFieldMap.entries()).map(([key, value]) => [value, key]));
-      const mainObj = new exprBuilder.WhereExprBuilder<T & U>(mainFieldColumnMap);
+    const mainFieldColumnMap = this.getFieldColumnMap();
+    const mainObj = new exprBuilder.WhereExprBuilder<T & U>(mainFieldColumnMap);
 
-      const joinFieldColumnMap = new Map(Array.from(joinSet.columnFieldMap.entries()).map(([key, value]) => [value, key]));
-      const joinObj = new exprBuilder.BaseExprBuilder(joinFieldColumnMap);
-      temp = param(mainObj, joinObj);
-    }
+    joinSet.initColumnFieldMap();
+    const joinFieldColumnMap = new Map(Array.from(joinSet.columnFieldMap.entries()).map(([key, value]) => [value, key]));
+    const joinObj = new exprBuilder.BaseExprBuilder(joinFieldColumnMap);
 
-    if (!(temp && temp instanceof sql.Expression && temp.exps.length > 0)) throw new Error('Invalid Join');
+    const onExpr = param(mainObj, joinObj);
 
-    const joinQuerySet = new JoinQuerySet<T & U, A>(this.context, joinType, this, joinSet, temp);
+    if (!this.isValidExpression(onExpr)) throw new Error('Invalid Join');
 
-    return joinQuerySet;
+    return new JoinQuerySet<T & U, A>(this.context, joinType, this, joinSet, onExpr);
   }
 }
 

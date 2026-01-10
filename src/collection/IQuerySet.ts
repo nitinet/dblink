@@ -95,10 +95,11 @@ abstract class IQuerySet<T extends object> {
    * Get Queryable Select object with custom Type
    *
    * @abstract
-   * @param {(keyof T)[]} columnKeys
-   * @returns {IQuerySet<T>}
+   * @template K
+   * @param {K[]} keys
+   * @returns {IQuerySet<Pick<T, K>>}
    */
-  abstract select(columnKeys: (keyof T)[]): IQuerySet<T>;
+  abstract select<K extends keyof T>(keys: K[]): IQuerySet<Pick<T, K>>;
 
   /**
    * Function to generate Where clause
