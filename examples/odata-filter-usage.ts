@@ -1,4 +1,4 @@
-import { FilterParser, parseFilter } from '../src/odata-parser/filterParser';
+import { FilterParser, parseFilter } from '../src/parsers/odata/filterParser.js';
 
 // Example: Basic OData filter parsing
 console.log('=== OData Filter Parser Usage Examples ===\n');

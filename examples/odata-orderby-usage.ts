@@ -5,7 +5,7 @@
 // Let's import from the JS files which should exist after build
 
 // Using require for this example to avoid ES module issues
-const { OrderByParser, parseOrderBy } = require('../src/odata-parser/orderByParser.js');
+import { OrderByParser, parseOrderBy } from '../src/parsers/odata/orderByParser.js';
 
 // Example: Basic OData orderby parsing
 console.log('=== OData OrderBy Parser Usage Examples ===\n');

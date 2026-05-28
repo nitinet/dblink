@@ -1,6 +1,6 @@
 import Handler from 'dblink-core/src/Handler.js';
-import ResultSet from 'dblink-core/src/model/ResultSet';
-import Statement from 'dblink-core/src/sql/Statement';
+import ResultSet from 'dblink-core/src/model/ResultSet.js';
+import Statement from 'dblink-core/src/sql/Statement.js';
 import { Readable } from 'node:stream';
 
 /**

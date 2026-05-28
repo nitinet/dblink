@@ -1,4 +1,4 @@
-import { TopSkipParser, parseTopSkip, parseTopSkipFromQuery, parseTopSkipFromQueryString, topSkipToLimitParams, limitExpressionToTopSkip } from '../src/odata-parser/topSkipParser';
+import { TopSkipParser, parseTopSkip, parseTopSkipFromQuery, parseTopSkipFromQueryString, topSkipToLimitParams, limitExpressionToTopSkip } from '../src/parsers/odata/topSkipParser.js';
 
 // Example: OData Top/Skip pagination parsing
 console.log('=== OData Top/Skip Parser Usage Examples ===\n');

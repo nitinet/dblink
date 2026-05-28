@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import SelectParser from '../src/odata-parser/selectParser.js';
+import SelectParser from '../src/parsers/odata/selectParser.js';
 
 describe('OData Select Parser', () => {
   let parser: SelectParser;

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import SelectParser from '../src/odata-parser/selectParser.js';
-import * as ODataParsers from '../src/odata-parser/index.js';
+import SelectParser from '../src/parsers/odata/selectParser.js';
+import * as ODataParsers from '../src/parsers/odata/index.js';
 
 describe('OData Select Parser Integration', () => {
   describe('Module Exports', () => {

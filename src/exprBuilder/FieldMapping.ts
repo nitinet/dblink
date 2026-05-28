@@ -1,4 +1,4 @@
-import { DataType, IEntityType } from 'dblink-core/src/types';
+import { DataType, IEntityType } from 'dblink-core/src/types.js';
 
 /**
  * FieldMapping

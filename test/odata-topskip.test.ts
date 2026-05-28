@@ -1,7 +1,7 @@
 import Operator from 'dblink-core/src/sql/types/Operator.js';
 import { describe, expect, it } from 'vitest';
-import { TopSkipParser, limitExpressionToTopSkip, parseTopSkip, parseTopSkipFromQuery, parseTopSkipFromQueryString, topSkipToLimitParams } from '../src/odata-parser/topSkipParser';
-import { ODataTopSkipParseError } from '../src/odata-parser/types';
+import { TopSkipParser, limitExpressionToTopSkip, parseTopSkip, parseTopSkipFromQuery, parseTopSkipFromQueryString, topSkipToLimitParams } from '../src/parsers/odata/topSkipParser.js';
+import { ODataTopSkipParseError } from '../src/parsers/odata/types.js';
 
 describe('OData Top/Skip Parser', () => {
   describe('Basic Parsing', () => {

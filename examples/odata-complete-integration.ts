@@ -5,9 +5,9 @@
  * to handle complete OData query parameters.
  */
 
-import { parseFilter } from '../src/odata-parser/filterParser';
-import { parseOrderBy } from '../src/odata-parser/orderByParser';
-import { parseTopSkipFromQuery, topSkipToLimitParams } from '../src/odata-parser/topSkipParser';
+import { parseFilter } from '../src/parsers/odata/filterParser.js';
+import { parseOrderBy } from '../src/parsers/odata/orderByParser.js';
+import { parseTopSkipFromQuery, topSkipToLimitParams } from '../src/parsers/odata/topSkipParser.js';
 
 // Example: Complete OData query processing
 async function processODataQuery(req: any, db: any) {
