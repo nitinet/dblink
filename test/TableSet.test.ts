@@ -84,7 +84,6 @@ describe('TableSet', () => {
 
     try {
       await cleanupTestTables(context);
-      await context.handler.close(null);
     } catch (error) {
       console.warn('Error during test cleanup:', error);
     }

@@ -2,7 +2,7 @@
 
 A robust and type-safe ORM (Object-Relational Mapping) library for Node.js written in TypeScript. DBLink makes database interactions intuitive and maintainable with a decorator-based approach and strong typing throughout the entire query pipeline.
 
-![Version](https://img.shields.io/badge/version-1.3.0-blue)
+![Version](https://img.shields.io/badge/version-1.4.4-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-blue)
 ![Node.js](https://img.shields.io/badge/Node.js-18.0%2B-green)
@@ -16,6 +16,7 @@ DBLink provides a powerful and intuitive way to interact with databases using Ty
 - **TypeScript-First**: Fully leverages TypeScript's type system for type-safe database operations
 - **Decorator-Based Mapping**: Simple and expressive entity-database mapping using decorators
 - **Fluent Query API**: Intuitive interface for building complex database queries
+- **Join Support**: Perform INNER JOIN, LEFT JOIN, and RIGHT JOIN across multiple entities with full type safety
 - **Relationship Support**: Define and navigate one-to-many and many-to-many relationships
 - **Transaction Support**: Execute multiple operations in atomic transactions
 - **Streaming Support**: Stream query results for memory-efficient data processing
@@ -57,8 +58,7 @@ DBLink is designed to be easy to set up and integrate with your TypeScript/Node.
 {
   "compilerOptions": {
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    // other options...
+    "emitDecoratorMetadata": true
   }
 }
 ```
@@ -69,45 +69,63 @@ DBLink relies on several key dependencies:
 
 - `reflect-metadata`: For decorator metadata
 - `class-transformer`: For entity serialization/deserialization
-- A database adapter (e.g., `dblink-mysql`, `dblink-postgres`)
+- A database adapter (e.g., `dblink-pg`, `dblink-mysql`)
 
 ### 1. Define your entities
 
 ```typescript
 import { Table, Column, Id, Foreign } from 'dblink';
 
-@Table('users')
-class User {
-  @Id()
+@Table('departments')
+class Department {
+  @Id
+  @Column()
   id!: number;
-  
+
+  @Column()
+  name!: string;
+}
+
+@Table('employees')
+class Employee {
+  @Id
+  @Column()
+  id!: number;
+
   @Column('first_name')
   firstName!: string;
-  
+
   @Column('last_name')
   lastName!: string;
-  
+
   @Column()
   email!: string;
-  
+
   @Column('created_at')
   createdAt!: Date;
+
+  @Column('department_id')
+  departmentId!: number;
+
+  @Foreign(Department, (builder, parent) => builder.eq('id', (parent as Employee).departmentId))
+  department!: Department;
 }
 
 @Table('orders')
 class Order {
-  @Id()
+  @Id
+  @Column()
   id!: number;
-  
+
   @Column('user_id')
   userId!: number;
 
-  @Foreign(User, (builder, parent) => builder.id.eq(parent.userId))
-  user!: User;
+  @Foreign(Employee, (builder, parent) => builder.eq('id', (parent as Order).userId))
+  employee!: Employee;
 
   @Column('order_date')
   orderDate!: Date;
-  
+
   @Column('total_amount')
   totalAmount!: number;
 }
@@ -116,21 +134,19 @@ class Order {
 ### 2. Create a database context
 
 ```typescript
-import { Context } from 'dblink';
-import { TableSet } from 'dblink';
-import { User, Order } from './entities';
-import MysqlDblink from 'dblink-mysql'; // or any other database driver
+import { Context, TableSet } from 'dblink';
+import PostgreSql from 'dblink-pg'; // or any other database adapter
 
 class DbContext extends Context {
-  user = new TableSet(User);
-  order = new TableSet(Order);
+  employees = new TableSet(Employee);
+  departments = new TableSet(Department);
+  orders = new TableSet(Order);
 }
 
-// Create a database context with connection options
-const db = new DbContext(new MysqlDblink({
+const db = new DbContext(new PostgreSql({
   host: 'localhost',
-  port: 3306,
-  username: 'root',
+  port: 5432,
+  user: 'postgres',
   password: 'password',
   database: 'mydatabase'
 }));
@@ -143,98 +159,94 @@ export default db;
 ### 3. Query your database
 
 ```typescript
-// Find a single user
-const user = await db.users
-  .where(u => u.id.eq(1))
+// Find a single employee by primary key
+const employee = await db.employees
+  .where(u => u.eq('id', 1))
   .single();
 
-
-// Find all users with filtering and ordering
-const users = await db.users
-  .where(u => u.lastName.eq('Smith'))
-  .orderBy(u => u.firstName.asc())
+// Find all employees with filtering and ordering
+const employees = await db.employees
+  .where(u => u.eq('lastName', 'Smith'))
+  .orderBy(u => [u.asc('firstName')])
   .list();
 
-// Find user with slelected columns
-const userWithSelectedColumns = await db.users
-  .where(u => u.id.eq(1))
-  .select('id', 'firstName', 'lastName')
+// Select specific columns
+const names = await db.employees
+  .where(u => u.eq('id', 1))
+  .select(['id', 'firstName', 'lastName'])
   .single();
 
-// Relationship queries
-const ordersWithUsers = await db.orders
-  .include('user')
-  .where(o => o.totalAmount.eq(100))
+// Load related entities (eager loading)
+const ordersWithEmployees = await db.orders
+  .include(['employee'])
+  .where(o => o.eq('totalAmount', 100))
   .list();
 
-// Pagination
-const page = await db.users
-  .orderBy(u => u.createdAt.desc())
-  .limit(10,10) // Skip 10, take 10
+// Pagination — skip 10, take 10
+const page = await db.employees
+  .orderBy(u => [u.desc('createdAt')])
+  .limit(10, 10)
   .list();
 
-// Aggregations
+// Count
 const totalOrders = await db.orders
-  .where(o => o.userId.eq(1))
+  .where(o => o.eq('userId', 1))
   .count();
 ```
 
 ### 4. Modify data
 
 ```typescript
-// Insert a new user
-const newUser = new User();
-newUser.firstName = 'John';
-newUser.lastName = 'Doe';
-newUser.email = 'john@example.com';
-newUser.createdAt = new Date();
+// Insert
+const newEmployee = new Employee();
+newEmployee.firstName = 'John';
+newEmployee.lastName = 'Doe';
+newEmployee.email = 'john@example.com';
+newEmployee.createdAt = new Date();
 
-await db.users.insert(newUser);
+await db.employees.insert(newEmployee);
 
-// Update a user
-const userToUpdate = await db.users
-  .where(u => u.id.eq(1))
-  .single();
+// Insert and return the saved entity
+const savedEmployee = await db.employees.insertAndFetch(newEmployee);
 
-if (userToUpdate) {
-  userToUpdate.email = 'new-email@example.com';
-  await db.users.update(userToUpdate, 'email');
+// Bulk insert
+await db.employees.insertBulk([employee1, employee2]);
+
+// Update specific columns
+const employeeToUpdate = await db.employees.where(u => u.eq('id', 1)).single();
+if (employeeToUpdate) {
+  employeeToUpdate.email = 'new-email@example.com';
+  await db.employees.update(employeeToUpdate, 'email');
 }
 
-// Delete a user
-const userToDelete = await db.users
-  .where(u => u.id.eq(2))
-  .single();
-
-if(userToDelete) {
-  await db.users.delete(userToDelete);
+// Delete
+const employeeToDelete = await db.employees.where(u => u.eq('id', 2)).single();
+if (employeeToDelete) {
+  await db.employees.delete(employeeToDelete);
 }
 ```
 
 ### 5. Transactions
 
 ```typescript
-// Start a transaction
 const transactionContext = await db.initTransaction();
 
 try {
-  // Perform multiple operations in a transaction
-  const user = new User();
-  user.firstName = 'Transaction';
-  user.lastName = 'Test';
-  user.email = 'transaction@example.com';
-  user.createdAt = new Date();
+  const employee = new Employee();
+  employee.firstName = 'Transaction';
+  employee.lastName = 'Test';
+  employee.email = 'tx@example.com';
+  employee.createdAt = new Date();
 
-  await transactionContext.users.insert(user);
+  await transactionContext.employees.insert(employee);
 
   const order = new Order();
-  order.userId = user.id;
+  order.userId = employee.id;
   order.orderDate = new Date();
   order.totalAmount = 99.99;
 
   await transactionContext.orders.insert(order);
 
-  // Commit the transaction
   await transactionContext.commit();
 } catch (error) {
   console.error('Transaction failed:', error);
@@ -244,124 +256,317 @@ try {
 
 ## Advanced Features
 
+### Join Queries
+
+DBLink supports type-safe JOIN operations across multiple entities. The `join()` method produces a `JoinQuerySet<T, U>` — a fully typed result that merges the fields of both tables.
+
+#### Signature
+
+```typescript
+tableSet.join(
+  rightSet: IQuerySet<U>,
+  onCondition: (left: WhereExprBuilder<T>, right: BaseExprBuilder<U>) => Expression,
+  joinType?: sql.types.Join  // default: InnerJoin
+): JoinQuerySet<T, U>
+```
+
+- **`rightSet`** — the `TableSet` or `QuerySet` to join to.
+- **`onCondition`** — a callback that receives expression builders for both sides and returns the ON expression. Use `left.eq(...)` for the left table and `right.col(...)` to reference a column on the right table.
+- **`joinType`** — optional; one of `sql.types.Join.InnerJoin` (default), `LeftJoin`, or `RightJoin`.
+
+#### Inner Join (default)
+
+```typescript
+import { sql } from 'dblink-core';
+
+const results = await db.employees
+  .join(
+    db.departments,
+    (emp, dept) => emp.eq('departmentId', dept.col('id'))
+  )
+  .list();
+
+// results is typed as (Employee & Department)[]
+// each row has both employee and department fields
+```
+
+#### Left Join
+
+```typescript
+const results = await db.employees
+  .join(
+    db.departments,
+    (emp, dept) => emp.eq('departmentId', dept.col('id')),
+    sql.types.Join.LeftJoin
+  )
+  .list();
+```
+
+#### Right Join
+
+```typescript
+const results = await db.departments
+  .join(
+    db.employees,
+    (dept, emp) => dept.eq('id', emp.col('departmentId')),
+    sql.types.Join.RightJoin
+  )
+  .list();
+```
+
+#### Filtering, Ordering, and Pagination on Joins
+
+All standard query methods are available on a `JoinQuerySet`:
+
+```typescript
+const results = await db.employees
+  .join(
+    db.departments,
+    (emp, dept) => emp.eq('departmentId', dept.col('id'))
+  )
+  .where(eb => eb.eq('firstName', 'John'))
+  .orderBy(eb => [eb.asc('lastName')])
+  .limit(10)
+  .list();
+```
+
+#### Selecting Specific Columns from a Join
+
+```typescript
+const results = await db.employees
+  .join(
+    db.departments,
+    (emp, dept) => emp.eq('departmentId', dept.col('id'))
+  )
+  .select(['firstName', 'lastName', 'name'])  // 'name' is from Department
+  .list();
+```
+
+#### Counting Join Results
+
+```typescript
+const count = await db.employees
+  .join(
+    db.departments,
+    (emp, dept) => emp.eq('departmentId', dept.col('id'))
+  )
+  .where(eb => eb.eq('name', 'Engineering'))
+  .count();
+```
+
+#### Chained (Multi-Table) Joins
+
+Because `JoinQuerySet` itself extends `IQuerySet`, you can chain further joins:
+
+```typescript
+const results = await db.employees
+  .join(
+    db.departments,
+    (emp, dept) => emp.eq('departmentId', dept.col('id'))
+  )
+  .join(
+    db.orders,
+    (empDept, ord) => empDept.eq('id', ord.col('userId'))
+  )
+  .where(eb => eb.eq('name', 'Engineering'))
+  .list();
+```
+
+#### Column Naming in Join Results
+
+When two tables share a column name (e.g., both have `id`), DBLink prefixes each column with the table alias in the returned rows to avoid conflicts:
+
+| SQL column | Result key |
+|---|---|
+| `e.id` | `e_id` |
+| `d.id` | `d_id` |
+| `e.first_name` | `e_first_name` |
+| `d.name` | `d_name` |
+
+The table alias is the first letter of the table name (e.g., `employees` → `e`, `departments` → `d`).
+
 ### Custom Queries
 
 ```typescript
-const query = 'SELECT * FROM users WHERE age > 18';
-
-// Execute raw SQL queries
-const results = await db.run(query);
+// Execute raw SQL
+const results = await db.run('SELECT * FROM employees WHERE department_id = 1');
 
 // Stream large result sets
-const stream = await db.stream(query);
+const stream = await db.stream('SELECT * FROM employees ORDER BY id');
 
-stream.on('data', (user) => {
-  console.log(user.firstName);
+stream.on('data', (row) => {
+  console.log(row.first_name);
+});
+
+stream.on('end', () => {
+  console.log('Done');
 });
 ```
 
 ### Entity Relationships
 
-DBLink supports various relationship types between entities:
-
-#### One-to-Many Relationships
+DBLink supports relationship loading via `include()`:
 
 ```typescript
-@Table('departments')
-class Department {
-  @Id()
-  id!: number;
-  
-  @Column()
-  name!: string;
-  
-  // Virtual property for employees in this department
-  @Foreign(Employee, (e, dept) => e.departmentId.eq(dept.id))
-  employees!: Employee[];
-}
+// Load orders together with their related employee
+const orders = await db.orders
+  .include(['employee'])
+  .list();
 
-@Table('employees')
-class Employee {
-  @Id()
-  id!: number;
-  
-  @Column('department_id')
-  departmentId!: number;
-  
-  @Foreign(Department, (d, emp) => d.id.eq(emp.departmentId))
-  department!: Department;
-}
+orders.forEach(order => {
+  console.log(order.employee.firstName);
+});
 ```
 
 ### Query Building
 
-DBLink provides a comprehensive set of query operators:
+DBLink provides a comprehensive set of query operators through the expression builder:
 
-- Comparison: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`
-- Logical: `and`, `or`, `not`
-- String: `like`
-- Collection: `in`
-- Null checks: `isNull`, `isNotNull`
-- Date: `between`
-- Arithmetic: `add`, `subtract`, `multiply`, `divide`
-- Aggregation: `count`, `sum`, `average`, `min`, `max`
+#### Comparison
+| Method | SQL |
+|---|---|
+| `eq('field', value)` | `field = value` |
+| `neq('field', value)` | `field != value` |
+| `gt('field', value)` | `field > value` |
+| `gteq('field', value)` | `field >= value` |
+| `lt('field', value)` | `field < value` |
+| `lteq('field', value)` | `field <= value` |
+
+#### String / Pattern
+| Method | SQL |
+|---|---|
+| `like('field', pattern)` | `field LIKE pattern` |
+
+#### Null Checks
+| Method | SQL |
+|---|---|
+| `isNull('field')` | `field IS NULL` |
+| `isNotNull('field')` | `field IS NOT NULL` |
+
+#### Collection
+| Method | SQL |
+|---|---|
+| `in('field', ...values)` | `field IN (...)` |
+| `between('field', low, high)` | `field BETWEEN low AND high` |
+
+#### Arithmetic
+| Method | SQL |
+|---|---|
+| `plus('field', value)` | `field + value` |
+| `minus('field', value)` | `field - value` |
 
 ## Decorator Reference
 
-DBLink uses decorators to map TypeScript classes to database entities:
-
-### @Table(tableName?: string)
+### `@Table(tableName: string)`
 
 Marks a class as a database table entity.
 
-- `tableName`: Optional custom table name (defaults to class name if not provided)
+```typescript
+@Table('employees')
+class Employee { ... }
+```
 
-### @Column(columnName?: string)
+### `@Column(columnName?: string)`
 
-Maps a property to a database column.
+Maps a property to a database column. If `columnName` is omitted, the property name is used.
 
-- `columnName`: Optional custom column name (defaults to property name if not provided)
+```typescript
+@Column('first_name')
+firstName!: string;
 
-### @Id
+@Column()
+email!: string;
+```
 
-Marks a property as the primary key for the entity.
+### `@Id`
 
-### @Foreign(entityType, relationshipFunction)
+Marks a property as the primary key.
+
+```typescript
+@Id
+@Column()
+id!: number;
+```
+
+### `@Foreign(entityType, relationshipFn)`
 
 Defines a relationship between entities.
 
-- `entityType`: The related entity class
-- `relationshipFunction`: A function defining how the entities are related
+- `entityType` — the related entity class
+- `relationshipFn` — `(builder, parent) => Expression` defining the join condition
 
-Example:
 ```typescript
-@Foreign(User, (builder, parent) => builder.id.eq(parent.userId))
-user!: User;
+@Foreign(Department, (builder, parent) => builder.eq('id', (parent as Employee).departmentId))
+department!: Department;
 ```
 
 ## API Reference
 
-For detailed API documentation, please see the TypeScript definitions in the source code.
+### `TableSet<T>`
+
+The primary interface for interacting with a database table.
+
+| Method | Description |
+|---|---|
+| `insert(entity)` | Insert a new row |
+| `insertAndFetch(entity)` | Insert and return the saved entity |
+| `insertBulk(entities)` | Insert multiple rows |
+| `update(entity, ...keys)` | Update specific columns |
+| `updateBulk(entities, ...keys)` | Update multiple rows |
+| `upsert(entity)` | Insert or update |
+| `delete(entity)` | Delete a row |
+| `deleteBulk(entities)` | Delete multiple rows |
+| `get(...ids)` | Find by primary key |
+| `where(fn)` | Filter rows |
+| `orderBy(fn)` | Sort rows |
+| `groupBy(fn)` | Group rows |
+| `limit(size, index?)` | Paginate |
+| `select(keys)` | Pick specific columns |
+| `include(keys)` | Eager-load related entities |
+| `join(set, onFn, joinType?)` | Join with another table |
+| `list()` | Execute and return all rows |
+| `count()` | Execute and return total count |
+| `single()` | Execute and return first row or `null` |
+| `stream()` | Stream results as a `Readable` |
+
+### `JoinQuerySet<T, U>`
+
+Returned by `join()`. Supports the same fluent methods as `TableSet` plus an additional `join()` for further chaining.
+
+| Method | Description |
+|---|---|
+| `where(fn)` | Filter using fields from T or U |
+| `orderBy(fn)` | Sort using fields from T or U |
+| `groupBy(fn)` | Group using fields from T or U |
+| `limit(size, index?)` | Paginate |
+| `select(keys)` | Pick specific columns from T or U |
+| `join(set, onFn, joinType?)` | Chain another join |
+| `list()` | Execute and return `(T & U)[]` |
+| `count()` | Execute and return total count |
+| `listAndCount()` | Execute and return `{ values, count }` |
+| `stream()` | Stream results as a `Readable` |
 
 ## Troubleshooting
 
-### Common Issues
+### "Table Name Not Found"
 
-#### "Error: No metadata for type X"
+- Make sure your entity class is decorated with `@Table('table_name')`.
+- Ensure `reflect-metadata` is imported at the application entry point before any entity imports.
 
-- Make sure you've properly decorated your entity class with `@Table()`
-- Ensure `reflect-metadata` is imported at the application entry point
+### "Field Not Found" on join condition
 
-#### "Error: Cannot find column Y on entity X"
+- The right-hand side of a join condition must use `dept.col('fieldName')` (the public `col()` method) — not a direct property access.
 
-- Check that the property is decorated with `@Column()` 
-- Verify the column name matches the database schema
+### "Invalid Join" error
 
-#### Performance Issues
+- The ON expression passed to `join()` must produce a valid non-empty `Expression`. Verify that the field names used in the callback exist on their respective entity types.
 
-- Use `include()` selectively to avoid N+1 query problems
-- For large result sets, use streaming with `stream()` instead of `list()`
-- Consider adding appropriate indexes to your database tables
+### Performance Tips
+
+- Use `select([...keys])` to fetch only the columns you need.
+- Use `include()` selectively — loading every relationship eagerly can cause N+1 query problems.
+- For large result sets, prefer `stream()` over `list()` to avoid loading everything into memory.
+- Use `limit()` with `count()` for efficient pagination.
 
 ## License
 

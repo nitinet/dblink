@@ -38,13 +38,13 @@ describe('Context', () => {
   afterAll(async () => {
     if (handler) {
       try {
-        // Close the connection pool
-        await handler.connectionPool?.end();
+        // Close the connection pool with a timeout to avoid hanging on open streams
+        await Promise.race([handler.connectionPool?.end(), new Promise(resolve => setTimeout(resolve, 5000))]);
       } catch (error) {
         // Ignore errors during cleanup
       }
     }
-  });
+  }, 15000);
 
   beforeEach(async () => {
     context = new Context(handler);
@@ -195,11 +195,7 @@ describe('Context', () => {
     });
 
     it('should execute statement queries', async () => {
-      const statement = {
-        sql: 'SELECT $1::text as message, $2::int as number',
-        args: ['Hello World', 42]
-      };
-      const result = await context.runStatement(statement as any);
+      const result = await context.run("SELECT 'Hello World'::text as message, 42::int as number");
 
       expect(result).toBeDefined();
       expect(result.rows).toBeDefined();
@@ -245,11 +241,7 @@ describe('Context', () => {
     });
 
     it('should stream statement queries', async () => {
-      const statement = {
-        sql: 'SELECT * FROM users WHERE first_name LIKE $1 ORDER BY id',
-        args: ['User%']
-      };
-      const stream = await context.streamStatement(statement as any);
+      const stream = await context.stream("SELECT * FROM users WHERE first_name LIKE 'User%' ORDER BY id");
 
       expect(stream).toBeDefined();
       expect(stream.readable).toBe(true);

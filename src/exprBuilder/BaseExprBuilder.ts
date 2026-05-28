@@ -53,6 +53,16 @@ class BaseExprBuilder<T> {
     const name = this.alias ? this.alias + '.' + column : column;
     return new Expression(name);
   }
+
+  /**
+   * Create a SQL column expression for a property (public alias for _expr)
+   *
+   * @param {KeyOf<T>} propName - The entity property name
+   * @returns {Expression} - The SQL expression representing the column
+   */
+  col(propName: KeyOf<T>): Expression {
+    return this._expr(propName);
+  }
 }
 
 export default BaseExprBuilder;

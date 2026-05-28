@@ -35,28 +35,51 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
 
     this.stat.collection.leftColl = leftQuerySet.stat.collection;
     this.stat.collection.rightColl = rightQuerySet.stat.collection;
+    this.stat.collection.join = joinType;
     this.stat.collection.onExpr = onExpr;
   }
 
   initColumnFieldMap() {
     if (this.columnFieldMap.size > 0) return;
 
+    const leftAlias = this.leftQuerySet.stat.collection.alias || '';
+    const rightAlias = this.rightQuerySet.stat.collection.alias || '';
+
     this.leftQuerySet.initColumnFieldMap();
     this.leftQuerySet.columnFieldMap.forEach((field, colName) => {
-      this.columnFieldMap.set(colName, field);
+      const resultKey = leftAlias ? `${leftAlias}_${colName}` : colName;
+      this.columnFieldMap.set(resultKey, field);
     });
 
     this.rightQuerySet.initColumnFieldMap();
     this.rightQuerySet.columnFieldMap.forEach((field, colName) => {
-      this.columnFieldMap.set(colName, field);
+      const resultKey = rightAlias ? `${rightAlias}_${colName}` : colName;
+      this.columnFieldMap.set(resultKey, field);
     });
   }
+
   /**
-   * Helper to create field-to-column map (inverted from columnFieldMap)
+   * Helper to create field-to-column map returning qualified "alias.colName" references for WHERE/ORDER BY
    */
   private getFieldColumnMap(): Map<keyof (T & U), string> {
-    this.initColumnFieldMap();
-    return new Map(Array.from(this.columnFieldMap.entries()).map(([key, value]) => [value, key])) as Map<keyof (T & U), string>;
+    const result = new Map<keyof (T & U), string>();
+
+    const leftAlias = this.leftQuerySet.stat.collection.alias || '';
+    const rightAlias = this.rightQuerySet.stat.collection.alias || '';
+
+    this.leftQuerySet.initColumnFieldMap();
+    this.leftQuerySet.columnFieldMap.forEach((field, colName) => {
+      const qualifiedCol = leftAlias ? `${leftAlias}.${colName}` : colName;
+      result.set(field as keyof (T & U), qualifiedCol);
+    });
+
+    this.rightQuerySet.initColumnFieldMap();
+    this.rightQuerySet.columnFieldMap.forEach((field, colName) => {
+      const qualifiedCol = rightAlias ? `${rightAlias}.${colName}` : colName;
+      result.set(field as keyof (T & U), qualifiedCol);
+    });
+
+    return result;
   }
 
   /**
@@ -65,6 +88,7 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
   private isValidExpression(expr: sql.Expression | null): expr is sql.Expression {
     return expr instanceof sql.Expression && expr.exps.length > 0;
   }
+
   // Select Functions
   /**
    * Prepare select statement
@@ -74,8 +98,21 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
 
     this.stat.command = sql.types.Command.SELECT;
 
-    this.columnFieldMap.forEach((_, colName) => {
-      this.stat.columns.push(new sql.Expression(colName));
+    const leftAlias = this.leftQuerySet.stat.collection.alias || '';
+    const rightAlias = this.rightQuerySet.stat.collection.alias || '';
+
+    this.leftQuerySet.initColumnFieldMap();
+    this.leftQuerySet.columnFieldMap.forEach((_, colName) => {
+      const colRef = leftAlias ? `${leftAlias}.${colName}` : colName;
+      const colAs = leftAlias ? `${leftAlias}_${colName}` : colName;
+      this.stat.columns.push(new sql.Expression(`${colRef} as ${colAs}`));
+    });
+
+    this.rightQuerySet.initColumnFieldMap();
+    this.rightQuerySet.columnFieldMap.forEach((_, colName) => {
+      const colRef = rightAlias ? `${rightAlias}.${colName}` : colName;
+      const colAs = rightAlias ? `${rightAlias}_${colName}` : colName;
+      this.stat.columns.push(new sql.Expression(`${colRef} as ${colAs}`));
     });
 
     this.stat.where = new sql.Expression(null, Operator.And, this.stat.where, this.leftQuerySet.stat.where, this.rightQuerySet.stat.where);
@@ -108,6 +145,7 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
     countStmt.groupBy = [];
     countStmt.orderBy = [];
     countStmt.limit = new sql.Expression();
+    countStmt.where = new sql.Expression(null, Operator.And, countStmt.where, this.leftQuerySet.stat.where, this.rightQuerySet.stat.where);
     const countResult = await this.context.runStatement(countStmt);
     return countResult.rows[0]['count'] as number;
   }
@@ -170,14 +208,25 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
    * @returns {JoinQuerySet<Pick<T & U, K>>}
    */
   select<K extends keyof (T & U)>(keys: K[]): IQuerySet<Pick<T & U, K>> {
+    const leftAlias = this.leftQuerySet.stat.collection.alias || '';
+    const rightAlias = this.rightQuerySet.stat.collection.alias || '';
+
+    this.columnFieldMap.clear();
+
     this.leftQuerySet.initColumnFieldMap();
     this.leftQuerySet.columnFieldMap.forEach((field, colName) => {
-      if (keys.includes(field as K)) this.columnFieldMap.set(colName, field);
+      if (keys.includes(field as K)) {
+        const resultKey = leftAlias ? `${leftAlias}_${colName}` : colName;
+        this.columnFieldMap.set(resultKey, field);
+      }
     });
 
     this.rightQuerySet.initColumnFieldMap();
     this.rightQuerySet.columnFieldMap.forEach((field, colName) => {
-      if (keys.includes(field as K)) this.columnFieldMap.set(colName, field);
+      if (keys.includes(field as K)) {
+        const resultKey = rightAlias ? `${rightAlias}_${colName}` : colName;
+        this.columnFieldMap.set(resultKey, field);
+      }
     });
 
     return this as unknown as IQuerySet<Pick<T & U, K>>;

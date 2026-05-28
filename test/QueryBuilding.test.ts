@@ -3,6 +3,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import TestDbContext from './TestDbContext.js';
 import WhereExprBuilder from '../src/exprBuilder/WhereExprBuilder.js';
 import Employee from './model/Employee.js';
+import JoinQuerySet from '../src/collection/JoinQuerySet.js';
+import { sql } from 'dblink-core';
 
 // Database configuration for testing
 const TEST_DB_CONFIG = {
@@ -388,6 +390,153 @@ describe('Query Building', () => {
       expect(query).toBeDefined();
       expect(query).toHaveProperty('single');
       expect(query).toHaveProperty('list');
+    });
+  });
+
+  describe('Join Operations', () => {
+    it('should return a JoinQuerySet from join()', () => {
+      const joinQuery = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')));
+
+      expect(joinQuery).toBeInstanceOf(JoinQuerySet);
+    });
+
+    it('should have join query set methods', () => {
+      const joinQuery = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')));
+
+      expect(joinQuery).toHaveProperty('list');
+      expect(joinQuery).toHaveProperty('count');
+      expect(joinQuery).toHaveProperty('single');
+      expect(joinQuery).toHaveProperty('where');
+      expect(joinQuery).toHaveProperty('orderBy');
+      expect(joinQuery).toHaveProperty('limit');
+      expect(joinQuery).toHaveProperty('select');
+      expect(joinQuery).toHaveProperty('stream');
+    });
+
+    it('should set join type on the collection', () => {
+      const joinQuery = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')));
+
+      expect(joinQuery.stat.collection.join).toBe(sql.types.Join.InnerJoin);
+      expect(joinQuery.stat.collection.leftColl).toBeDefined();
+      expect(joinQuery.stat.collection.rightColl).toBeDefined();
+      expect(joinQuery.stat.collection.onExpr).toBeDefined();
+    });
+
+    it('should support left join type', () => {
+      const joinQuery = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')), sql.types.Join.LeftJoin);
+
+      expect(joinQuery.stat.collection.join).toBe(sql.types.Join.LeftJoin);
+    });
+
+    it('should support right join type', () => {
+      const joinQuery = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')), sql.types.Join.RightJoin);
+
+      expect(joinQuery.stat.collection.join).toBe(sql.types.Join.RightJoin);
+    });
+
+    it('should default to inner join when no type specified', () => {
+      const joinQuery = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')));
+
+      expect(joinQuery.joinType).toBe(sql.types.Join.InnerJoin);
+    });
+
+    it('should populate columnFieldMap with alias-prefixed keys', () => {
+      const joinQuery = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')));
+
+      joinQuery.initColumnFieldMap();
+
+      // Keys should be alias_colName format
+      const keys = Array.from(joinQuery.columnFieldMap.keys());
+      // employees alias is 'e', departments alias is 'd'
+      expect(keys.some(k => k.startsWith('e_'))).toBe(true);
+      expect(keys.some(k => k.startsWith('d_'))).toBe(true);
+    });
+
+    it('should have no key conflicts when both tables have same column name', () => {
+      // Both Employee and Department have 'id' column
+      const joinQuery = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')));
+
+      joinQuery.initColumnFieldMap();
+
+      // Both 'e_id' and 'd_id' should exist
+      expect(joinQuery.columnFieldMap.has('e_id')).toBe(true);
+      expect(joinQuery.columnFieldMap.has('d_id')).toBe(true);
+    });
+
+    it('should support where clause on joined query set', () => {
+      const joinQuery = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id'))).where(eb => eb.eq('firstName', 'John'));
+
+      expect(joinQuery).toBeDefined();
+      expect(joinQuery).toHaveProperty('list');
+    });
+
+    it('should support orderBy on joined query set', () => {
+      const joinQuery = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id'))).orderBy(eb => [eb.asc('firstName')]);
+
+      expect(joinQuery).toBeDefined();
+      expect(joinQuery.stat.orderBy.length).toBeGreaterThan(0);
+    });
+
+    it('should support limit on joined query set', () => {
+      const joinQuery = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id'))).limit(10);
+
+      expect(joinQuery).toBeDefined();
+    });
+
+    it('should support select on joined query set', () => {
+      const joinQuery = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id'))).select(['firstName', 'lastName', 'name']);
+
+      expect(joinQuery).toBeDefined();
+      // After select, only selected fields should be in columnFieldMap
+      const fields = Array.from((joinQuery as any).columnFieldMap.values());
+      expect(fields).toContain('firstName');
+      expect(fields).toContain('lastName');
+      expect(fields).toContain('name');
+    });
+
+    it('should generate correct SQL via prepareSelectStatement', () => {
+      const joinQuery = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')));
+
+      joinQuery.prepareSelectStatement();
+
+      // Should have columns for both tables with alias prefixes
+      expect(joinQuery.stat.columns.length).toBeGreaterThan(0);
+      const colExprs = joinQuery.stat.columns.map((c: any) => c.value);
+      // Should have aliased column expressions
+      expect(colExprs.some((v: string) => v && v.includes('e.'))).toBe(true);
+      expect(colExprs.some((v: string) => v && v.includes('d.'))).toBe(true);
+      expect(colExprs.some((v: string) => v && v.includes(' as e_'))).toBe(true);
+      expect(colExprs.some((v: string) => v && v.includes(' as d_'))).toBe(true);
+    });
+
+    it('should support chained join (nested join)', () => {
+      const joinQuery = context.employees
+        .join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')))
+        .join(context.orders, (empDept, ord) => empDept.eq('id', ord.col('userId')));
+
+      expect(joinQuery).toBeInstanceOf(JoinQuerySet);
+      expect(joinQuery.stat.collection.join).toBe(sql.types.Join.InnerJoin);
+    });
+
+    it('should support fluent chain of where, orderBy, limit on join', () => {
+      const joinQuery = context.employees
+        .join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')))
+        .where(eb => eb.eq('firstName', 'Alice'))
+        .orderBy(eb => [eb.asc('lastName')])
+        .limit(5);
+
+      expect(joinQuery).toBeDefined();
+      expect(joinQuery.stat.where.exps.length).toBeGreaterThan(0);
+      expect(joinQuery.stat.orderBy.length).toBeGreaterThan(0);
+    });
+
+    it('should throw for invalid join expression', () => {
+      expect(() => {
+        context.employees.join(
+          context.departments,
+          () => new sql.Expression() // Empty expression - invalid
+        );
+      }).toThrow('Invalid Join');
     });
   });
 });

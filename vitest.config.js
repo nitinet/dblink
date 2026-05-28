@@ -5,6 +5,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['test/**/*.{test,spec}.ts'],
-    setupFiles: ['reflect-metadata']
+    setupFiles: ['reflect-metadata'],
+    fileParallelism: false
   }
 });

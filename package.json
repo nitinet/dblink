@@ -1,11 +1,11 @@
 {
   "name": "dblink",
-  "version": "1.4.4",
+  "version": "1.4.6",
   "type": "module",
   "main": "./src/index.js",
   "types": "./src/index.ts",
   "scripts": {
-    "test": "vitest run",
+    "test": "TEST_DB_USER=$(whoami) vitest run",
     "tsc": "tsc",
     "eslint": "eslint --fix ./src/**/*.ts",
     "prettier": "prettier --log-level silent --write ./src",

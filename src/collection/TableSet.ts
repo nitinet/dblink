@@ -52,6 +52,8 @@ class TableSet<T extends object> extends IQuerySet<T> {
     super();
     this.EntityType = EntityType;
     this.dbSet = this.createDbSet();
+    this.stat.collection.value = this.dbSet.tableName;
+    this.stat.collection.alias = this.dbSet.tableName.charAt(0);
   }
 
   /**
