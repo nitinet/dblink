@@ -13,6 +13,5 @@ import * as collection from './collection/index.js';
 import * as decorators from './decorators/index.js';
 import * as exprBuilder from './exprBuilder/index.js';
 import * as expression from './expression/index.js';
-import * as parsers from './parsers/index.js';
 
-export { Context, collection, core, decorators, exprBuilder, expression, parsers };
+export { Context, collection, core, decorators, exprBuilder, expression };

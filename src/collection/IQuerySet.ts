@@ -11,7 +11,6 @@ import JoinQuerySet from './JoinQuerySet.js';
  *
  * @abstract
  * @class IQuerySet
- * @typedef {IQuerySet}
  * @template {Object} T
  */
 abstract class IQuerySet<T extends object> {
