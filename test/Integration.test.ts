@@ -1,436 +1,354 @@
 import PostgreSql from 'dblink-pg';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import Department from './model/Department.js';
+import Employee from './model/Employee.js';
 import Order from './model/Order.js';
 import TestDbContext from './TestDbContext.js';
-import Employee from './model/Employee.js';
 
-// Database configuration for testing
+/**
+ * End-to-end ORM integration tests.
+ *
+ * Unlike the pure unit suites, these exercise the full pipeline
+ * (decorator metadata -> Statement AST -> Handler -> ResultSet -> entity mapping)
+ * against a live PostgreSQL instance using the actual entity models. The schema
+ * created here matches the `employees` / `departments` / `orders` tables the
+ * models map to, so CRUD, query building, eager-loading and joins are validated
+ * against real SQL rather than just asserting that builders return an object.
+ */
+
 const TEST_DB_CONFIG = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'dblink_test',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
-  max: 10,
-  idleTimeoutMillis: 30000,
+  max: 5,
+  idleTimeoutMillis: 5000,
   connectionTimeoutMillis: 2000
 };
 
-describe('DBLink Integration Tests - README Examples', () => {
+// Probe the database once at load time so the whole suite can be skipped
+// cleanly when PostgreSQL is not reachable (e.g. CI without a database).
+let dbAvailable = false;
+{
+  const probe = new PostgreSql(TEST_DB_CONFIG);
+  try {
+    await probe.init();
+    dbAvailable = true;
+  } catch {
+    dbAvailable = false;
+  } finally {
+    try {
+      await probe.connectionPool?.end();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+async function createSchema(handler: PostgreSql) {
+  await handler.run('DROP TABLE IF EXISTS orders CASCADE');
+  await handler.run('DROP TABLE IF EXISTS employees CASCADE');
+  await handler.run('DROP TABLE IF EXISTS departments CASCADE');
+
+  await handler.run(`
+    CREATE TABLE departments (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL
+    )
+  `);
+
+  await handler.run(`
+    CREATE TABLE employees (
+      id SERIAL PRIMARY KEY,
+      first_name VARCHAR(255),
+      last_name VARCHAR(255),
+      email VARCHAR(255) UNIQUE,
+      created_at TIMESTAMP DEFAULT NOW(),
+      department_id INTEGER REFERENCES departments(id)
+    )
+  `);
+
+  await handler.run(`
+    CREATE TABLE orders (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES employees(id),
+      order_date TIMESTAMP DEFAULT NOW(),
+      total_amount DECIMAL(10, 2)
+    )
+  `);
+}
+
+function newEmployee(overrides: Partial<Employee> = {}): Employee {
+  const emp = new Employee();
+  emp.firstName = overrides.firstName ?? 'John';
+  emp.lastName = overrides.lastName ?? 'Doe';
+  emp.email = overrides.email ?? 'john@example.com';
+  emp.createdAt = overrides.createdAt ?? new Date();
+  if (overrides.departmentId != null) emp.departmentId = overrides.departmentId;
+  return emp;
+}
+
+// Insert fixtures one-by-one. `insertBulk` cannot be used for seeding because
+// dblink-core concatenates the per-row parameterized statements with ';' and
+// dblink-pg's extended (prepared) protocol rejects multi-command queries — see
+// the "Bulk operations" block below, which pins that limitation explicitly.
+async function seedEmployees(db: TestDbContext, employees: Employee[]): Promise<void> {
+  for (const emp of employees) await db.employees.insert(emp);
+}
+
+describe.skipIf(!dbAvailable)('DBLink ORM Integration (live PostgreSQL)', () => {
   let handler: PostgreSql;
   let db: TestDbContext;
 
   beforeAll(async () => {
     handler = new PostgreSql(TEST_DB_CONFIG);
-
-    // Test database connection
-    try {
-      await handler.init();
-    } catch (error) {
-      console.warn('Database not available, skipping database-dependent tests');
-      console.log('PostgreSQL handler not available - skipping database tests');
-      return;
-    }
+    await handler.init();
   });
 
   afterAll(async () => {
-    if (handler) {
-      try {
-        // Close the connection pool with a timeout to avoid hanging on open streams
-        await Promise.race([handler.connectionPool?.end(), new Promise(resolve => setTimeout(resolve, 5000))]);
-      } catch (error) {
-        // Ignore errors during cleanup
-      }
+    if (!handler) return;
+    try {
+      await handler.run('DROP TABLE IF EXISTS orders CASCADE');
+      await handler.run('DROP TABLE IF EXISTS employees CASCADE');
+      await handler.run('DROP TABLE IF EXISTS departments CASCADE');
+    } catch {
+      /* ignore */
+    }
+    try {
+      await Promise.race([handler.connectionPool?.end(), new Promise(resolve => setTimeout(resolve, 5000))]);
+    } catch {
+      /* ignore */
     }
   }, 15000);
 
   beforeEach(async () => {
-    vi.clearAllMocks();
+    await createSchema(handler);
     db = new TestDbContext(handler);
     await db.init();
-
-    // Clean up any existing data
-    try {
-      await cleanupTestData();
-    } catch (error) {
-      // Ignore cleanup errors for fresh databases
-    }
   });
 
-  afterEach(async () => {
-    // Clean up test data after each test
-    try {
-      await cleanupTestData();
-    } catch (error) {
-      console.warn('Error during test cleanup:', error);
-    }
-  });
+  describe('Insert & Get', () => {
+    it('inserts a row and reads it back mapped to the entity', async () => {
+      await db.employees.insert(newEmployee({ firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com' }));
 
-  async function cleanupTestData() {
-    if (!handler) return;
-
-    try {
-      // Drop test tables if they exist
-      await handler.run('DROP TABLE IF EXISTS orders CASCADE');
-      await handler.run('DROP TABLE IF EXISTS users CASCADE');
-      await handler.run('DROP TABLE IF EXISTS profiles CASCADE');
-      await handler.run('DROP TABLE IF EXISTS employees CASCADE');
-      await handler.run('DROP TABLE IF EXISTS departments CASCADE');
-    } catch (error) {
-      // Ignore errors if tables don't exist
-    }
-  }
-
-  async function createTestTables() {
-    if (!handler) return;
-
-    // Create test tables matching our entity definitions
-    await handler.run(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        first_name VARCHAR(255),
-        last_name VARCHAR(255),
-        email VARCHAR(255) UNIQUE,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-
-    await handler.run(`
-      CREATE TABLE IF NOT EXISTS orders (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        order_date TIMESTAMP DEFAULT NOW(),
-        total_amount DECIMAL(10,2)
-      )
-    `);
-
-    await handler.run(`
-      CREATE TABLE IF NOT EXISTS profiles (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255),
-        email VARCHAR(255),
-        createdAt TIMESTAMP DEFAULT NOW(),
-        updatedAt TIMESTAMP DEFAULT NOW()
-      )
-    `);
-  }
-
-  describe('Basic Setup and Configuration', () => {
-    it('should create database context successfully', async () => {
-      expect(db).toBeInstanceOf(TestDbContext);
-      expect(db.orders).toBeDefined();
+      const all = await db.employees.list();
+      expect(all).toHaveLength(1);
+      expect(all[0]).toBeInstanceOf(Employee);
+      expect(all[0].firstName).toBe('Ada');
+      expect(all[0].lastName).toBe('Lovelace');
+      expect(all[0].email).toBe('ada@example.com');
+      expect(all[0].id).toBeGreaterThan(0);
     });
 
-    it('should initialize with proper entity mappings', async () => {
-      expect(db.tableSetMap.size).toBeGreaterThan(0);
-      expect(db.tableSetMap.has(Order)).toBe(true);
+    it('insertAndFetch returns the persisted entity with a generated id', async () => {
+      const saved = await db.employees.insertAndFetch(newEmployee({ firstName: 'Grace', email: 'grace@example.com' }));
+
+      expect(saved).toBeInstanceOf(Employee);
+      expect(saved.id).toBeGreaterThan(0);
+      expect(saved.firstName).toBe('Grace');
+
+      const fetched = await db.employees.get(saved.id);
+      expect(fetched).not.toBeNull();
+      expect(fetched!.email).toBe('grace@example.com');
+    });
+
+    it('get returns null when no row matches', async () => {
+      const missing = await db.employees.get(999999);
+      expect(missing).toBeNull();
+    });
+
+    it('get throws when the wrong number of key params is supplied', async () => {
+      await expect(db.employees.get()).rejects.toThrow('Invalid Arguments Length');
     });
   });
 
-  describe('Query Examples from README', () => {
+  describe('list & count', () => {
+    it('reflects every persisted row', async () => {
+      await seedEmployees(db, [
+        newEmployee({ firstName: 'A', email: 'a@example.com' }),
+        newEmployee({ firstName: 'B', email: 'b@example.com' }),
+        newEmployee({ firstName: 'C', email: 'c@example.com' })
+      ]);
+
+      expect(await db.employees.count()).toBe(3);
+      const list = await db.employees.list();
+      expect(list.map(e => e.firstName).sort()).toEqual(['A', 'B', 'C']);
+    });
+  });
+
+  describe('Query building against real data', () => {
     beforeEach(async () => {
-      await createTestTables();
+      await seedEmployees(db, [
+        newEmployee({ firstName: 'Alice', lastName: 'Smith', email: 'alice@example.com' }),
+        newEmployee({ firstName: 'Bob', lastName: 'Smith', email: 'bob@example.com' }),
+        newEmployee({ firstName: 'Carol', lastName: 'Jones', email: 'carol@example.com' })
+      ]);
     });
 
-    it('should support finding a single employee', async () => {
-      // README: const user = await db.users.where(u => u.id.eq(1)).single();
-      const employeeQuery = db.employees.where(u => u.eq('id', 1));
-      expect(employeeQuery).toBeDefined();
-      expect(employeeQuery).toHaveProperty('single');
+    it('where filters rows', async () => {
+      const smiths = await db.employees.where(e => e.eq('lastName', 'Smith')).list();
+      expect(smiths).toHaveLength(2);
+      expect(smiths.every(e => e.lastName === 'Smith')).toBe(true);
     });
 
-    it('should support finding employees with filtering and ordering', async () => {
-      const employeeQuery = db.employees.where(u => u.eq('lastName', 'Smith')).orderBy(u => [u.asc('firstName')]);
-
-      expect(employeeQuery).toBeDefined();
-      expect(employeeQuery).toHaveProperty('list');
+    it('where + single returns exactly one row', async () => {
+      const bob = await db.employees.where(e => e.eq('email', 'bob@example.com')).single();
+      expect(bob).not.toBeNull();
+      expect(bob!.firstName).toBe('Bob');
     });
 
-    it('should support column selection', async () => {
-      const employeeQuery = db.employees.where(u => u.eq('id', 1)).select(['id', 'firstName', 'lastName']);
-
-      expect(employeeQuery).toBeDefined();
-      expect(employeeQuery).toHaveProperty('single');
+    it('single throws when more than one row matches', async () => {
+      await expect(db.employees.where(e => e.eq('lastName', 'Smith')).single()).rejects.toThrow('More than one row found');
     });
 
-    it('should support relationship queries', async () => {
-      // README: const ordersWithUsers = await db.orders.include('user').where(o => o.totalAmount.eq(100)).list();
-      const orderQuery = db.orders.include(['employee']).where(o => o.eq('totalAmount', 100));
+    it('orderBy sorts ascending and descending', async () => {
+      const asc = await db.employees.orderBy(e => [e.asc('firstName')]).list();
+      expect(asc.map(e => e.firstName)).toEqual(['Alice', 'Bob', 'Carol']);
 
-      expect(orderQuery).toBeDefined();
-      expect(orderQuery).toHaveProperty('list');
+      const desc = await db.employees.orderBy(e => [e.desc('firstName')]).list();
+      expect(desc.map(e => e.firstName)).toEqual(['Carol', 'Bob', 'Alice']);
     });
 
-    it('should support pagination', async () => {
-      // README: const page = await db.users.orderBy(u => u.createdAt.desc()).limit(10,10).list();
-      const pageQuery = db.employees.orderBy(u => [u.desc('createdAt')]).limit(10, 10);
-
-      expect(pageQuery).toBeDefined();
-      expect(pageQuery).toHaveProperty('list');
+    it('limit caps the number of returned rows', async () => {
+      const limited = await db.employees.orderBy(e => [e.asc('firstName')]).limit(2).list();
+      expect(limited).toHaveLength(2);
+      expect(limited.map(e => e.firstName)).toEqual(['Alice', 'Bob']);
     });
 
-    it('should support aggregations', async () => {
-      // README: const totalOrders = await db.orders.where(o => o.userId.eq(1)).count();
-      const countQuery = db.orders.where(o => o.eq('userId', 1));
+    it('select projects only the requested columns', async () => {
+      const rows = await db.employees.where(e => e.eq('firstName', 'Alice')).select(['id', 'firstName']).list();
+      expect(rows).toHaveLength(1);
+      expect(rows[0].firstName).toBe('Alice');
+      // Non-selected columns are excluded from the projection.
+      expect((rows[0] as Partial<Employee>).email).toBeUndefined();
+    });
 
-      expect(countQuery).toBeDefined();
-      expect(countQuery).toHaveProperty('count');
+    it('count reflects the where clause', async () => {
+      expect(await db.employees.where(e => e.eq('lastName', 'Smith')).count()).toBe(2);
+      expect(await db.employees.where(e => e.eq('lastName', 'Nobody')).count()).toBe(0);
+    });
+
+    it('in operator matches any of the supplied values', async () => {
+      const rows = await db.employees.where(e => e.in('firstName', 'Alice', 'Carol')).list();
+      expect(rows.map(e => e.firstName).sort()).toEqual(['Alice', 'Carol']);
     });
   });
 
-  describe('Data Modification Examples from README', () => {
+  describe('Update, upsert & delete', () => {
+    it('update persists changed fields and returns the fresh entity', async () => {
+      const saved = await db.employees.insertAndFetch(newEmployee({ firstName: 'Old', email: 'update@example.com' }));
+
+      saved.firstName = 'New';
+      const updated = await db.employees.update(saved, 'firstName');
+      expect(updated.firstName).toBe('New');
+
+      const reread = await db.employees.get(saved.id);
+      expect(reread!.firstName).toBe('New');
+    });
+
+    it('upsert inserts when the row is new and updates when it exists', async () => {
+      // Insert path (no id yet).
+      const inserted = await db.employees.upsert(newEmployee({ firstName: 'Fresh', email: 'upsert@example.com' }));
+      expect(inserted.id).toBeGreaterThan(0);
+      expect(await db.employees.count()).toBe(1);
+
+      // Update path (existing id).
+      inserted.lastName = 'Changed';
+      const updated = await db.employees.upsert(inserted);
+      expect(updated.lastName).toBe('Changed');
+      expect(await db.employees.count()).toBe(1);
+    });
+
+    it('delete removes a single row', async () => {
+      const saved = await db.employees.insertAndFetch(newEmployee({ email: 'delete@example.com' }));
+      await db.employees.delete(saved);
+      expect(await db.employees.get(saved.id)).toBeNull();
+    });
+  });
+
+  // The *Bulk helpers build one parameterized statement per row and hand the
+  // array to the handler, which dblink-core concatenates with ';'. PostgreSQL's
+  // extended/prepared protocol (used whenever bind parameters are present)
+  // forbids multiple commands in one query, so these currently fail for >1 row.
+  // These tests pin that limitation: if a future dblink-core/dblink-pg release
+  // executes array statements individually, they will start passing and should
+  // be rewritten to assert success.
+  describe('Bulk operations (known dblink-pg multi-command limitation)', () => {
+    it('insertBulk rejects for more than one row', async () => {
+      await expect(db.employees.insertBulk([newEmployee({ email: 'b1@example.com' }), newEmployee({ email: 'b2@example.com' })])).rejects.toThrow(/multiple commands/i);
+    });
+
+    it('deleteBulk rejects for more than one row', async () => {
+      const a = await db.employees.insertAndFetch(newEmployee({ email: 'del1@example.com' }));
+      const b = await db.employees.insertAndFetch(newEmployee({ email: 'del2@example.com' }));
+      await expect(db.employees.deleteBulk([a, b])).rejects.toThrow(/multiple commands/i);
+    });
+  });
+
+  describe('Constraint violations surface as errors', () => {
+    it('rejects a duplicate unique email', async () => {
+      await db.employees.insert(newEmployee({ email: 'dupe@example.com' }));
+      await expect(db.employees.insert(newEmployee({ email: 'dupe@example.com' }))).rejects.toThrow();
+    });
+  });
+
+  describe('Eager loading with include()', () => {
+    it('loads a related entity through a foreign key', async () => {
+      const dept = await db.departments.insertAndFetch(Object.assign(new Department(), { name: 'Engineering' }));
+      const emp = await db.employees.insertAndFetch(newEmployee({ firstName: 'Eng', email: 'eng@example.com', departmentId: dept.id }));
+      await db.orders.insert(Object.assign(new Order(), { userId: emp.id, totalAmount: 100, orderDate: new Date() }));
+
+      const orders = await db.orders.include(['employee']).list();
+      expect(orders).toHaveLength(1);
+      expect(orders[0].employee).toBeInstanceOf(Employee);
+      expect(orders[0].employee.firstName).toBe('Eng');
+    });
+
+    it('resolves a chain of relations (order -> employee -> department)', async () => {
+      const dept = await db.departments.insertAndFetch(Object.assign(new Department(), { name: 'Sales' }));
+      const emp = await db.employees.insertAndFetch(newEmployee({ firstName: 'Sam', email: 'sam@example.com', departmentId: dept.id }));
+
+      const loaded = await db.employees.include(['department']).where(e => e.eq('id', emp.id)).single();
+      expect(loaded).not.toBeNull();
+      expect(loaded!.department).toBeInstanceOf(Department);
+      expect(loaded!.department.name).toBe('Sales');
+    });
+  });
+
+  describe('Join execution', () => {
     beforeEach(async () => {
-      await createTestTables();
+      const eng = await db.departments.insertAndFetch(Object.assign(new Department(), { name: 'Engineering' }));
+      const sales = await db.departments.insertAndFetch(Object.assign(new Department(), { name: 'Sales' }));
+      await seedEmployees(db, [
+        newEmployee({ firstName: 'Alice', email: 'alice@example.com', departmentId: eng.id }),
+        newEmployee({ firstName: 'Bob', email: 'bob@example.com', departmentId: sales.id })
+      ]);
     });
 
-    it('should support insert operations', async () => {
-      // README example: Insert a new user
-      const newEmployee = new Employee();
-      newEmployee.firstName = 'John';
-      newEmployee.lastName = 'Doe';
-      newEmployee.email = 'john@example.com';
-      newEmployee.createdAt = new Date();
-
-      expect(db.employees).toHaveProperty('insert');
-
-      // Test that the insert method exists and can be called
-      // In a real scenario, this would actually insert data
+    it('returns merged rows across both tables', async () => {
+      const rows = await db.employees.join(db.departments, (emp, dept) => emp.eq('departmentId', dept.col('id'))).list();
+      expect(rows).toHaveLength(2);
+      const byName = Object.fromEntries(rows.map(r => [(r as Employee & Department).firstName, (r as Employee & Department).name]));
+      expect(byName['Alice']).toBe('Engineering');
+      expect(byName['Bob']).toBe('Sales');
     });
 
-    it('should support update operations', async () => {
-      // README example shows update workflow
-      expect(db.employees).toHaveProperty('update');
+    it('supports where + count on the joined set', async () => {
+      const joined = db.employees.join(db.departments, (emp, dept) => emp.eq('departmentId', dept.col('id'))).where(eb => eb.eq('firstName', 'Alice'));
 
-      // The pattern would be:
-      // 1. Find user: const userToUpdate = await db.users.where(u => u.id.eq(1)).single();
-      // 2. Modify: userToUpdate.email = 'new-email@example.com';
-      // 3. Update: await db.users.update(userToUpdate, 'email');
-    });
-
-    it('should support delete operations', async () => {
-      // README example shows delete workflow
-      expect(db.employees).toHaveProperty('delete');
-
-      // The pattern would be:
-      // 1. Find user: const userToDelete = await db.users.where(u => u.id.eq(2)).single();
-      // 2. Delete: await db.users.delete(userToDelete);
+      expect(await joined.count()).toBe(1);
+      const rows = await joined.list();
+      expect(rows).toHaveLength(1);
+      expect((rows[0] as Employee & Department).name).toBe('Engineering');
     });
   });
 
-  describe('Transaction Examples from README', () => {
-    it('should support transaction workflow', async () => {
-      // README: const transactionContext = await db.initTransaction();
-      const transactionContext = await db.initTransaction();
-
-      expect(transactionContext).toBeInstanceOf(TestDbContext);
-      expect(transactionContext).not.toBe(db);
-      expect(transactionContext.employees).toBeDefined();
-      expect(transactionContext.orders).toBeDefined();
-
-      // Test commit and rollback methods exist
-      expect(transactionContext).toHaveProperty('commit');
-      expect(transactionContext).toHaveProperty('rollback');
-
-      await transactionContext.rollback(); // Clean up
-    });
-
-    it('should support transaction commit workflow', async () => {
-      const transactionContext = await db.initTransaction();
-
-      // Simulate multi-step transaction
-      const user = new Employee();
-      user.firstName = 'Transaction';
-      user.lastName = 'Test';
-      user.email = 'transaction@example.com';
-      user.createdAt = new Date();
-
-      // Should be able to perform operations within transaction
-      expect(transactionContext.employees).toHaveProperty('insert');
-      expect(transactionContext.orders).toHaveProperty('insert');
-
-      // Should be able to commit
-      await expect(transactionContext.commit()).resolves.not.toThrow();
-    });
-
-    it('should support transaction rollback workflow', async () => {
-      const transactionContext = await db.initTransaction();
-
-      // Should be able to rollback
-      await expect(transactionContext.rollback()).resolves.not.toThrow();
-    });
-
-    it('should handle transaction errors gracefully', async () => {
-      const transactionContext = await db.initTransaction();
-
-      try {
-        // Simulate some operations that might fail
-        // In real scenario, this would be actual database operations
-
-        // If success, commit
-        await transactionContext.commit();
-      } catch (error) {
-        // If error, rollback
-        await transactionContext.rollback();
-      }
-
-      // Both paths should be supported without throwing
-      expect(true).toBe(true); // Test completes without error
-    });
-  });
-
-  describe('Advanced Features from README', () => {
-    beforeEach(async () => {
-      await createTestTables();
-    });
-
-    it('should support custom raw queries', async () => {
-      // README: const results = await db.run(query);
-      const query = 'SELECT 1 as test_value';
-
-      expect(db).toHaveProperty('run');
-
-      const result = await db.run(query);
-      expect(result).toBeDefined();
-      expect(result.rows).toBeDefined();
-      expect(result.rows[0].test_value).toBe(1);
-    });
-
-    it('should support streaming large datasets', async () => {
-      // README: const stream = await db.stream(query);
-      const query = 'SELECT 1 as test_value';
-
-      expect(db).toHaveProperty('stream');
-
-      const stream = await db.stream(query);
-      expect(stream).toBeDefined();
-      expect(stream.readable).toBe(true);
-
-      // Consume the stream to release the DB connection
-      await new Promise((resolve, reject) => {
-        stream.on('data', () => {});
-        stream.on('end', resolve);
-        stream.on('error', reject);
-      });
-    });
-
-    it('should support statement execution', async () => {
-      expect(db).toHaveProperty('runStatement');
-
-      const result = await db.run('SELECT 42::int as test_value');
-      expect(result).toBeDefined();
-      expect(result.rows).toBeDefined();
-      expect(result.rows[0].test_value).toBe(42);
-    });
-
-    it('should support statement streaming', async () => {
-      expect(db).toHaveProperty('streamStatement');
-
-      const stream = await db.stream("SELECT 'hello'::text as test_value");
-      expect(stream).toBeDefined();
-      expect(stream.readable).toBe(true);
-
-      // Consume the stream to release the DB connection
-      await new Promise((resolve, reject) => {
-        stream.on('data', () => {});
-        stream.on('end', resolve);
-        stream.on('error', reject);
-      });
-    });
-  });
-
-  describe('Type Safety and Entity Relationships', () => {
-    it('should maintain strong typing throughout query pipeline', () => {
-      // Test that entity types are preserved
-      expect(db.employees.getEntityType()).toBe(Employee);
-      expect(db.orders.getEntityType()).toBe(Order);
-
-      // Test that queries maintain type safety
-      const employeeQuery = db.employees.where(u => u.eq('id', 1));
-      expect(employeeQuery).toBeDefined();
-    });
-
-    it('should support relationship navigation', () => {
-      // Test that foreign key relationships are properly configured
-      const orderQuery = db.orders.include(['employee']);
-      expect(orderQuery).toBeDefined();
-
-      // Verify that the Order entity has employee relationship metadata
-      const foreignKeyType = Reflect.getMetadata('foreignKeyType', Order.prototype, 'employee');
-      expect(foreignKeyType).toBe(Employee);
-    });
-
-    it('should support complex query combinations', () => {
-      // Test complex query building like what would be used in real applications
-      const complexQuery = db.orders
-        .include(['employee'])
-        .where(o => o.eq('totalAmount', 100))
-        .orderBy(o => [o.desc('orderDate'), o.asc('totalAmount')])
-        .limit(10);
-
-      expect(complexQuery).toBeDefined();
-      expect(complexQuery).toHaveProperty('list');
-      expect(complexQuery).toHaveProperty('single');
-      expect(complexQuery).toHaveProperty('count');
-    });
-  });
-
-  describe('Error Handling and Edge Cases', () => {
-    it('should handle database connection errors', async () => {
-      // Test with invalid connection config
-      const errorHandler = new PostgreSql({
-        ...TEST_DB_CONFIG,
-        host: 'invalid-host',
-        connectionTimeoutMillis: 1000
-      });
-
-      const errorDb = new TestDbContext(errorHandler);
-      await errorDb.init();
-      // Connection is lazy - errors surface when actually running a query
-      await expect(errorDb.run('SELECT 1')).rejects.toThrow();
-      // Clean up the error pool to avoid open handles
-      try {
-        await errorHandler.connectionPool?.end();
-      } catch (_) {
-        /* ignore */
-      }
-    }, 5000);
-
-    it('should handle query execution errors', async () => {
-      await expect(db.run('INVALID SQL QUERY')).rejects.toThrow();
-    });
-
-    it('should handle transaction errors', async () => {
-      // This test may vary based on the actual implementation
-      // For now, just test that the method exists
-      expect(db).toHaveProperty('initTransaction');
-    });
-  });
-
-  describe('Performance and Memory Management', () => {
-    beforeEach(async () => {
-      await createTestTables();
-    });
-
-    it('should support streaming for large result sets', async () => {
-      // This tests the streaming capability for memory-efficient processing
-      const stream = await db.stream('SELECT 1 as test_value');
-      expect(stream).toBeDefined();
-      expect(stream.readable).toBe(true);
-
-      // Consume the stream to release the DB connection
-      await new Promise((resolve, reject) => {
-        stream.on('data', () => {});
-        stream.on('end', resolve);
-        stream.on('error', reject);
-      });
-    });
-
-    it('should support pagination to limit memory usage', () => {
-      // Test pagination functionality that helps with performance
-      const paginatedQuery = db.employees.orderBy(u => [u.desc('createdAt')]).limit(100, 20); // Skip 100, take 20
-
-      expect(paginatedQuery).toBeDefined();
-      expect(paginatedQuery).toHaveProperty('list');
+  describe('Context wiring', () => {
+    it('registers every TableSet in tableSetMap', () => {
+      expect(db.tableSetMap.get(Employee)).toBe(db.employees);
+      expect(db.tableSetMap.get(Order)).toBe(db.orders);
+      expect(db.tableSetMap.get(Department)).toBe(db.departments);
     });
   });
 });

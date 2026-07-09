@@ -354,11 +354,11 @@ class QuerySet<T extends object> extends IQuerySet<T> {
 
     this.initColumnFieldMap();
     const mainFieldColumnMap = new Map(Array.from(this.columnFieldMap.entries()).map(([key, value]) => [value, key]));
-    const mainObj = new exprBuilder.WhereExprBuilder<T>(mainFieldColumnMap);
+    const mainObj = new exprBuilder.WhereExprBuilder<T>(mainFieldColumnMap, this.stat.collection.alias ?? undefined);
 
     joinSet.initColumnFieldMap();
     const joinFieldColumnMap = new Map(Array.from(joinSet.columnFieldMap.entries()).map(([key, value]) => [value, key]));
-    const joinObj = new exprBuilder.BaseExprBuilder(joinFieldColumnMap);
+    const joinObj = new exprBuilder.BaseExprBuilder(joinFieldColumnMap, joinSet.stat.collection.alias ?? undefined);
 
     const onExpr = param(mainObj, joinObj);
 

@@ -22,21 +22,21 @@
   "dependencies": {
     "@types/lodash-es": "^4.17.12",
     "class-transformer": "^0.5.1",
-    "dblink-core": "^1.4.1",
+    "dblink-core": "^1.4.2",
     "lodash-es": "^4.18.1",
     "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {
-    "@eslint/js": "^9.28.0",
-    "@types/node": "^25.9.1",
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^26.1.1",
     "@types/pg": "^8.20.0",
     "dblink-pg": "^1.4.0",
-    "eslint-config-prettier": "^10.1.5",
-    "eslint-plugin-prettier": "^5.4.1",
-    "globals": "^16.2.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
+    "globals": "^17.7.0",
     "npm-run-all": "^4.1.5",
     "ts-node": "^10.9.2",
-    "typescript-eslint": "^8.33.1",
-    "vitest": "^3.2.4"
+    "typescript-eslint": "^8.63.0",
+    "vitest": "^4.1.10"
   }
 }

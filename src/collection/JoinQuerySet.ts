@@ -315,7 +315,7 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
 
     joinSet.initColumnFieldMap();
     const joinFieldColumnMap = new Map(Array.from(joinSet.columnFieldMap.entries()).map(([key, value]) => [value, key]));
-    const joinObj = new exprBuilder.BaseExprBuilder(joinFieldColumnMap);
+    const joinObj = new exprBuilder.BaseExprBuilder(joinFieldColumnMap, joinSet.stat.collection.alias ?? undefined);
 
     const onExpr = param(mainObj, joinObj);
 
