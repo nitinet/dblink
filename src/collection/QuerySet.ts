@@ -121,7 +121,8 @@ class QuerySet<T extends object> extends IQuerySet<T> {
     countStmt.orderBy = [];
     countStmt.limit = new sql.Expression();
     const countResult = await this.context.runStatement(countStmt);
-    return countResult.rows[0]['count'] as number;
+    // Drivers such as node-postgres return count() (bigint) as a string; coerce to number.
+    return Number(countResult.rows[0]['count']);
   }
 
   /**

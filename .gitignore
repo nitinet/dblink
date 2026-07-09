@@ -6,6 +6,10 @@ logs
 node_modules/
 tsconfig.tsbuildinfo
 
+# Compiled TypeScript output (built on publish via prepublishOnly)
+/src/**/*.js
+/test/**/*.js
+
 # Optional npm cache directory
 .npm
 package-lock.json

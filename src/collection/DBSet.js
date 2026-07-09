@@ -1,9 +1,9 @@
 class DBSet {
-  tableName;
-  fieldMap = new Map();
-  constructor(tableName) {
-    this.tableName = tableName;
-  }
+    tableName;
+    fieldMap = new Map();
+    constructor(tableName) {
+        this.tableName = tableName;
+    }
 }
 export default DBSet;
 //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiREJTZXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJEQlNldC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFTQSxNQUFNLEtBQUs7SUFNVCxTQUFTLENBQVM7SUFRbEIsUUFBUSxHQUFvQyxJQUFJLEdBQUcsRUFBRSxDQUFDO0lBUXRELFlBQVksU0FBaUI7UUFDM0IsSUFBSSxDQUFDLFNBQVMsR0FBRyxTQUFTLENBQUM7SUFDN0IsQ0FBQztDQUNGO0FBRUQsZUFBZSxLQUFLLENBQUMifQ==

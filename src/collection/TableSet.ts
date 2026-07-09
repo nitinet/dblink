@@ -165,7 +165,7 @@ class TableSet<T extends object> extends IQuerySet<T> {
 
     if (result.rows.length == 1) {
       if (this.primaryFields.length == 1) {
-        const id = result.rows[0].id as OperandType<T, keyof T>;
+        const id = result.rows[0][this.primaryFields[0].colName] as OperandType<T, keyof T>;
         return this.getOrThrow(id);
       } else {
         const row = result.rows[0];

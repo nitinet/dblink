@@ -4,12 +4,17 @@
   "type": "module",
   "main": "./src/index.js",
   "types": "./src/index.ts",
+  "files": [
+    "src/**/*.ts",
+    "src/**/*.js"
+  ],
   "scripts": {
     "test": "TEST_DB_USER=$(whoami) vitest run",
     "tsc": "tsc",
     "eslint": "eslint --fix ./src/**/*.ts",
     "prettier": "prettier --log-level silent --write ./src",
-    "build": "run-s tsc eslint prettier"
+    "build": "run-s tsc eslint prettier",
+    "prepublishOnly": "npm run build"
   },
   "author": "",
   "license": "ISC",

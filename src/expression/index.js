@@ -1,15 +1,15 @@
 import Expression from 'dblink-core/src/sql/Expression.js';
 import { Operator } from 'dblink-core/src/sql/types/index.js';
 export function array(...args) {
-  const vals = args.map(val => {
-    const arg = new Expression('?');
-    arg.args = arg.args.concat(val);
-    return arg;
-  });
-  return new Expression(null, Operator.Array, ...vals);
+    const vals = args.map(val => {
+        const arg = new Expression('?');
+        arg.args = arg.args.concat(val);
+        return arg;
+    });
+    return new Expression(null, Operator.Array, ...vals);
 }
 export function cast(expr, val2) {
-  const cast = new Expression(val2);
-  return new Expression(null, Operator.Cast, expr, cast);
+    const cast = new Expression(val2);
+    return new Expression(null, Operator.Cast, expr, cast);
 }
 //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbmRleC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxPQUFPLFVBQVUsTUFBTSxtQ0FBbUMsQ0FBQztBQUMzRCxPQUFPLEVBQUUsUUFBUSxFQUFFLE1BQU0sb0NBQW9DLENBQUM7QUFFOUQsTUFBTSxVQUFVLEtBQUssQ0FBQyxHQUFHLElBQWU7SUFDdEMsTUFBTSxJQUFJLEdBQUcsSUFBSSxDQUFDLEdBQUcsQ0FBQyxHQUFHLENBQUMsRUFBRTtRQUMxQixNQUFNLEdBQUcsR0FBRyxJQUFJLFVBQVUsQ0FBQyxHQUFHLENBQUMsQ0FBQztRQUNoQyxHQUFHLENBQUMsSUFBSSxHQUFHLEdBQUcsQ0FBQyxJQUFJLENBQUMsTUFBTSxDQUFDLEdBQUcsQ0FBQyxDQUFDO1FBQ2hDLE9BQU8sR0FBRyxDQUFDO0lBQ2IsQ0FBQyxDQUFDLENBQUM7SUFDSCxPQUFPLElBQUksVUFBVSxDQUFDLElBQUksRUFBRSxRQUFRLENBQUMsS0FBSyxFQUFFLEdBQUcsSUFBSSxDQUFDLENBQUM7QUFDdkQsQ0FBQztBQUVELE1BQU0sVUFBVSxJQUFJLENBQUMsSUFBZ0IsRUFBRSxJQUFZO0lBQ2pELE1BQU0sSUFBSSxHQUFHLElBQUksVUFBVSxDQUFDLElBQUksQ0FBQyxDQUFDO0lBQ2xDLE9BQU8sSUFBSSxVQUFVLENBQUMsSUFBSSxFQUFFLFFBQVEsQ0FBQyxJQUFJLEVBQUUsSUFBSSxFQUFFLElBQUksQ0FBQyxDQUFDO0FBQ3pELENBQUMifQ==

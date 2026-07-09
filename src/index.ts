@@ -15,3 +15,7 @@ import * as exprBuilder from './exprBuilder/index.js';
 import * as expression from './expression/index.js';
 
 export { Context, collection, core, decorators, exprBuilder, expression };
+
+// Named re-exports for convenient top-level access (see README quickstart)
+export { Column, Foreign, Id, Table } from './decorators/index.js';
+export { IQuerySet, QuerySet, TableSet } from './collection/index.js';

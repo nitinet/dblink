@@ -1,19 +1,23 @@
 import { sql } from 'dblink-core';
 class IQuerySet {
-  context;
-  stat = new sql.Statement(sql.types.Command.SELECT);
-  columnFieldMap = new Map();
-  async single() {
-    const arr = await this.list();
-    if (arr.length > 1) throw new Error('More than one row found in unique call');
-    else if (arr.length == 0) return null;
-    else return arr[0];
-  }
-  async singleOrThrow() {
-    const val = await this.single();
-    if (!val) throw new Error('Value Not Found');
-    return val;
-  }
+    context;
+    stat = new sql.Statement(sql.types.Command.SELECT);
+    columnFieldMap = new Map();
+    async single() {
+        const arr = await this.list();
+        if (arr.length > 1)
+            throw new Error('More than one row found in unique call');
+        else if (arr.length == 0)
+            return null;
+        else
+            return arr[0];
+    }
+    async singleOrThrow() {
+        const val = await this.single();
+        if (!val)
+            throw new Error('Value Not Found');
+        return val;
+    }
 }
 export default IQuerySet;
 //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiSVF1ZXJ5U2V0LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiSVF1ZXJ5U2V0LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUtBLE9BQU8sRUFBRSxHQUFHLEVBQUUsTUFBTSxhQUFhLENBQUM7QUFVbEMsTUFBZSxTQUFTO0lBTXRCLE9BQU8sQ0FBVztJQU9sQixJQUFJLEdBQWtCLElBQUksR0FBRyxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsS0FBSyxDQUFDLE9BQU8sQ0FBQyxNQUFNLENBQUMsQ0FBQztJQUVsRSxjQUFjLEdBQUcsSUFBSSxHQUFHLEVBQW1CLENBQUM7SUEyQzVDLEtBQUssQ0FBQyxNQUFNO1FBQ1YsTUFBTSxHQUFHLEdBQUcsTUFBTSxJQUFJLENBQUMsSUFBSSxFQUFFLENBQUM7UUFDOUIsSUFBSSxHQUFHLENBQUMsTUFBTSxHQUFHLENBQUM7WUFBRSxNQUFNLElBQUksS0FBSyxDQUFDLHdDQUF3QyxDQUFDLENBQUM7YUFDekUsSUFBSSxHQUFHLENBQUMsTUFBTSxJQUFJLENBQUM7WUFBRSxPQUFPLElBQUksQ0FBQzs7WUFDakMsT0FBTyxHQUFHLENBQUMsQ0FBQyxDQUFDLENBQUM7SUFDckIsQ0FBQztJQVFELEtBQUssQ0FBQyxhQUFhO1FBQ2pCLE1BQU0sR0FBRyxHQUFHLE1BQU0sSUFBSSxDQUFDLE1BQU0sRUFBRSxDQUFDO1FBQ2hDLElBQUksQ0FBQyxHQUFHO1lBQUUsTUFBTSxJQUFJLEtBQUssQ0FBQyxpQkFBaUIsQ0FBQyxDQUFDO1FBQzdDLE9BQU8sR0FBRyxDQUFDO0lBQ2IsQ0FBQztDQW1ERjtBQUVELGVBQWUsU0FBUyxDQUFDIn0=

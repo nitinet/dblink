@@ -147,7 +147,8 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
     countStmt.limit = new sql.Expression();
     countStmt.where = new sql.Expression(null, Operator.And, countStmt.where, this.leftQuerySet.stat.where, this.rightQuerySet.stat.where);
     const countResult = await this.context.runStatement(countStmt);
-    return countResult.rows[0]['count'] as number;
+    // Drivers such as node-postgres return count() (bigint) as a string; coerce to number.
+    return Number(countResult.rows[0]['count']);
   }
 
   /**
