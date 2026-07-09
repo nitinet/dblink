@@ -194,6 +194,7 @@ class QuerySet<T extends object> extends IQuerySet<T> {
 
     return dataStream.pipe(
       new Transform({
+        objectMode: true,
         transform: async (chunk: Record<string, unknown>, encoding: BufferEncoding, callback: TransformCallback) => {
           const data: T = await transformerFunc(chunk);
           callback(null, data);

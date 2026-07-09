@@ -192,6 +192,7 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
 
     return dataStream.pipe(
       new Transform({
+        objectMode: true,
         transform: async (chunk: Record<string, unknown>, encoding: BufferEncoding, callback: TransformCallback) => {
           const data: T = await transformerFunc(chunk);
           callback(null, data);

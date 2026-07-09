@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "test": "TEST_DB_USER=$(whoami) vitest run",
+    "coverage": "TEST_DB_USER=$(whoami) vitest run --coverage",
     "tsc": "tsc",
     "eslint": "eslint --fix ./src/**/*.ts",
     "prettier": "prettier --log-level silent --write ./src",
@@ -30,6 +31,7 @@
     "@eslint/js": "^9.39.4",
     "@types/node": "^26.1.1",
     "@types/pg": "^8.20.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "dblink-pg": "^1.4.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
