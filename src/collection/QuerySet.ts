@@ -8,7 +8,7 @@ import { FOREIGN_KEY_FUNC, FOREIGN_KEY_TYPE, TABLE_COLUMN_KEYS } from '../decora
 import * as exprBuilder from '../exprBuilder/index.js';
 import { IForeignFunc } from '../exprBuilder/types.js';
 import DBSet from './DBSet.js';
-import IQuerySet from './IQuerySet.js';
+import IQuerySet, { ColumnInfo } from './IQuerySet.js';
 import JoinQuerySet from './JoinQuerySet.js';
 
 /**
@@ -67,6 +67,25 @@ class QuerySet<T extends object> extends IQuerySet<T> {
         this.columnFieldMap.set(fieldMapping.colName, field);
       }
     });
+  }
+
+  /**
+   * Qualified column descriptors for composing this set into a join.
+   *
+   * @returns {ColumnInfo<T>[]}
+   */
+  getColumnInfo(): ColumnInfo<T>[] {
+    this.initColumnFieldMap();
+    const alias = this.stat.collection.alias || '';
+    const cols: ColumnInfo<T>[] = [];
+    this.columnFieldMap.forEach((field, colName) => {
+      cols.push({
+        field,
+        colRef: alias ? `${alias}.${colName}` : colName,
+        colAs: alias ? `${alias}_${colName}` : colName
+      });
+    });
+    return cols;
   }
 
   /**

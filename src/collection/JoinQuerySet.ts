@@ -4,7 +4,7 @@ import { cloneDeep } from 'lodash-es';
 import { Readable, Transform, TransformCallback } from 'node:stream';
 import Context from '../Context.js';
 import * as exprBuilder from '../exprBuilder/index.js';
-import IQuerySet from './IQuerySet.js';
+import IQuerySet, { ColumnInfo } from './IQuerySet.js';
 import { IForeignFunc } from '../exprBuilder/types.js';
 
 /**
@@ -15,6 +15,14 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
   leftQuerySet: IQuerySet<T>;
   rightQuerySet: IQuerySet<U>;
   onExpr: sql.Expression;
+
+  /**
+   * Fields retained by select(); null means "all columns".
+   *
+   * @private
+   * @type {(Set<keyof (T & U)> | null)}
+   */
+  private selectedFields: Set<keyof (T & U)> | null = null;
 
   /**
    * Creates an instance of QuerySet.
@@ -39,46 +47,41 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
     this.stat.collection.onExpr = onExpr;
   }
 
-  initColumnFieldMap() {
-    if (this.columnFieldMap.size > 0) return;
-
-    const leftAlias = this.leftQuerySet.stat.collection.alias || '';
-    const rightAlias = this.rightQuerySet.stat.collection.alias || '';
-
-    this.leftQuerySet.initColumnFieldMap();
-    this.leftQuerySet.columnFieldMap.forEach((field, colName) => {
-      const resultKey = leftAlias ? `${leftAlias}_${colName}` : colName;
-      this.columnFieldMap.set(resultKey, field);
-    });
-
-    this.rightQuerySet.initColumnFieldMap();
-    this.rightQuerySet.columnFieldMap.forEach((field, colName) => {
-      const resultKey = rightAlias ? `${rightAlias}_${colName}` : colName;
-      this.columnFieldMap.set(resultKey, field);
-    });
+  /**
+   * Qualified column descriptors: the left and right sets' descriptors
+   * concatenated. Because each child already qualifies its own columns
+   * (`e.id`, `d.name`, …), this composes correctly through nested joins.
+   *
+   * @returns {ColumnInfo<T & U>[]}
+   */
+  getColumnInfo(): ColumnInfo<T & U>[] {
+    return [...(this.leftQuerySet.getColumnInfo() as ColumnInfo<T & U>[]), ...(this.rightQuerySet.getColumnInfo() as ColumnInfo<T & U>[])];
   }
 
   /**
-   * Helper to create field-to-column map returning qualified "alias.colName" references for WHERE/ORDER BY
+   * Column descriptors after applying any select() narrowing.
+   */
+  private selectedColumns(): ColumnInfo<T & U>[] {
+    const cols = this.getColumnInfo();
+    const selected = this.selectedFields;
+    return selected ? cols.filter(c => selected.has(c.field)) : cols;
+  }
+
+  initColumnFieldMap() {
+    if (this.columnFieldMap.size > 0) return;
+    this.selectedColumns().forEach(c => this.columnFieldMap.set(c.colAs, c.field));
+  }
+
+  /**
+   * Helper to create field-to-column map returning qualified "alias.colName"
+   * references for WHERE / ORDER BY / ON. When both sides share a field name
+   * (e.g. `id`), the left (driving) set wins.
    */
   private getFieldColumnMap(): Map<keyof (T & U), string> {
     const result = new Map<keyof (T & U), string>();
-
-    const leftAlias = this.leftQuerySet.stat.collection.alias || '';
-    const rightAlias = this.rightQuerySet.stat.collection.alias || '';
-
-    this.leftQuerySet.initColumnFieldMap();
-    this.leftQuerySet.columnFieldMap.forEach((field, colName) => {
-      const qualifiedCol = leftAlias ? `${leftAlias}.${colName}` : colName;
-      result.set(field as keyof (T & U), qualifiedCol);
+    this.getColumnInfo().forEach(c => {
+      if (!result.has(c.field)) result.set(c.field, c.colRef);
     });
-
-    this.rightQuerySet.initColumnFieldMap();
-    this.rightQuerySet.columnFieldMap.forEach((field, colName) => {
-      const qualifiedCol = rightAlias ? `${rightAlias}.${colName}` : colName;
-      result.set(field as keyof (T & U), qualifiedCol);
-    });
-
     return result;
   }
 
@@ -98,21 +101,8 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
 
     this.stat.command = sql.types.Command.SELECT;
 
-    const leftAlias = this.leftQuerySet.stat.collection.alias || '';
-    const rightAlias = this.rightQuerySet.stat.collection.alias || '';
-
-    this.leftQuerySet.initColumnFieldMap();
-    this.leftQuerySet.columnFieldMap.forEach((_, colName) => {
-      const colRef = leftAlias ? `${leftAlias}.${colName}` : colName;
-      const colAs = leftAlias ? `${leftAlias}_${colName}` : colName;
-      this.stat.columns.push(new sql.Expression(`${colRef} as ${colAs}`));
-    });
-
-    this.rightQuerySet.initColumnFieldMap();
-    this.rightQuerySet.columnFieldMap.forEach((_, colName) => {
-      const colRef = rightAlias ? `${rightAlias}.${colName}` : colName;
-      const colAs = rightAlias ? `${rightAlias}_${colName}` : colName;
-      this.stat.columns.push(new sql.Expression(`${colRef} as ${colAs}`));
+    this.selectedColumns().forEach(c => {
+      this.stat.columns.push(new sql.Expression(`${c.colRef} as ${c.colAs}`));
     });
 
     this.stat.where = new sql.Expression(null, Operator.And, this.stat.where, this.leftQuerySet.stat.where, this.rightQuerySet.stat.where);
@@ -210,27 +200,9 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
    * @returns {JoinQuerySet<Pick<T & U, K>>}
    */
   select<K extends keyof (T & U)>(keys: K[]): IQuerySet<Pick<T & U, K>> {
-    const leftAlias = this.leftQuerySet.stat.collection.alias || '';
-    const rightAlias = this.rightQuerySet.stat.collection.alias || '';
-
+    this.selectedFields = new Set<keyof (T & U)>(keys);
     this.columnFieldMap.clear();
-
-    this.leftQuerySet.initColumnFieldMap();
-    this.leftQuerySet.columnFieldMap.forEach((field, colName) => {
-      if (keys.includes(field as K)) {
-        const resultKey = leftAlias ? `${leftAlias}_${colName}` : colName;
-        this.columnFieldMap.set(resultKey, field);
-      }
-    });
-
-    this.rightQuerySet.initColumnFieldMap();
-    this.rightQuerySet.columnFieldMap.forEach((field, colName) => {
-      if (keys.includes(field as K)) {
-        const resultKey = rightAlias ? `${rightAlias}_${colName}` : colName;
-        this.columnFieldMap.set(resultKey, field);
-      }
-    });
-
+    this.initColumnFieldMap();
     return this as unknown as IQuerySet<Pick<T & U, K>>;
   }
 

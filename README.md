@@ -385,6 +385,8 @@ When two tables share a column name (e.g., both have `id`), DBLink prefixes each
 
 The table alias is the first letter of the table name (e.g., `employees` → `e`, `departments` → `d`).
 
+When both sides of a join share a field name, references to that field in `where` / `orderBy` / a chained join's ON condition resolve to the **left (driving)** table. In the chained example above, `empDept.eq('id', …)` refers to `employees.id`. To target the other side, join from that table or reference it via the right-hand `col(...)` builder.
+
 ### Custom Queries
 
 ```typescript

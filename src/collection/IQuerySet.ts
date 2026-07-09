@@ -7,6 +7,24 @@ import { sql } from 'dblink-core';
 import JoinQuerySet from './JoinQuerySet.js';
 
 /**
+ * Qualified descriptor for a single selectable column, used to compose a query
+ * set into a join.
+ *
+ * - `field`  the entity field name
+ * - `colRef` the qualified SQL reference (e.g. `e.first_name`) used in SELECT / WHERE / ON
+ * - `colAs`  the output alias / result key (e.g. `e_first_name`) used to read the row back
+ *
+ * @export
+ * @interface ColumnInfo
+ * @template {Object} T
+ */
+export interface ColumnInfo<T> {
+  field: keyof T;
+  colRef: string;
+  colAs: string;
+}
+
+/**
  * IQuerySet
  *
  * @abstract
@@ -31,6 +49,16 @@ abstract class IQuerySet<T extends object> {
   columnFieldMap = new Map<string, keyof T>();
 
   abstract initColumnFieldMap(): void;
+
+  /**
+   * Get qualified column descriptors for composing this set into a join.
+   * Leaf sets qualify each column with their table alias; joined sets
+   * concatenate their children's descriptors, so nested joins compose.
+   *
+   * @abstract
+   * @returns {ColumnInfo<T>[]}
+   */
+  abstract getColumnInfo(): ColumnInfo<T>[];
 
   // Selection Functions
   /**

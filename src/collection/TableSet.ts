@@ -6,7 +6,7 @@ import * as exprBuilder from '../exprBuilder/index.js';
 import * as types from '../exprBuilder/types.js';
 import { OperandType } from '../exprBuilder/types.js';
 import DBSet from './DBSet.js';
-import IQuerySet from './IQuerySet.js';
+import IQuerySet, { ColumnInfo } from './IQuerySet.js';
 import JoinQuerySet from './JoinQuerySet.js';
 import QuerySet from './QuerySet.js';
 
@@ -436,6 +436,10 @@ class TableSet<T extends object> extends IQuerySet<T> {
       }
     });
   }
+  getColumnInfo(): ColumnInfo<T>[] {
+    return this.createQuerySet().getColumnInfo();
+  }
+
   /**
    * Helper to create a new QuerySet instance
    */

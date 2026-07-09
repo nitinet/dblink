@@ -539,4 +539,82 @@ describe('Query Building', () => {
       }).toThrow('Invalid Join');
     });
   });
+
+  // These tests render the join Statement to real SQL through the pg Handler
+  // (offline — pg.Pool is lazy, no connection is opened). They demonstrate, and
+  // pin, the exact SQL a join produces end-to-end: decorator metadata -> field
+  // maps -> JoinQuerySet -> sql.Statement -> Collection.eval -> SQL string.
+  describe('Join SQL generation (rendered)', () => {
+    const render = (jq: { prepareSelectStatement(): void; stat: sql.Statement }) => {
+      jq.prepareSelectStatement();
+      return jq.stat.eval(handler);
+    };
+
+    it('renders a full INNER JOIN select with aliased columns and ON clause', () => {
+      const jq = context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')));
+
+      const { query, args } = render(jq);
+
+      expect(query).toBe(
+        'select e.id as e_id, e.first_name as e_first_name, e.last_name as e_last_name, ' +
+          'e.email as e_email, e.created_at as e_created_at, e.department_id as e_department_id, ' +
+          'd.id as d_id, d.name as d_name ' +
+          'from (employees as e inner join departments as d on e.department_id = d.id)'
+      );
+      expect(args).toEqual([]);
+    });
+
+    it('renders LEFT and RIGHT join keywords from the join type', () => {
+      const left = render(context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')), sql.types.Join.LeftJoin));
+      const right = render(context.employees.join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')), sql.types.Join.RightJoin));
+
+      expect(left.query).toContain('employees as e left join departments as d on e.department_id = d.id');
+      expect(right.query).toContain('employees as e right join departments as d on e.department_id = d.id');
+    });
+
+    it('renders WHERE / ORDER BY / LIMIT on the joined set as parameterized SQL', () => {
+      const jq = context.employees
+        .join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')))
+        .where(eb => eb.eq('firstName', 'John'))
+        .orderBy(eb => [eb.asc('name')])
+        .limit(10);
+
+      const { query, args } = render(jq);
+
+      // WHERE ref is alias-qualified, the literal is bound as a positional arg
+      expect(query).toContain('where (e.first_name = ?)');
+      expect(query).toContain('order by d.name asc');
+      expect(query).toContain('limit 10');
+      expect(args).toEqual(['John']);
+    });
+
+    it('narrows the SELECT list when select([...]) is used', () => {
+      const jq = context.employees
+        .join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')))
+        .select(['firstName', 'name']) as unknown as { prepareSelectStatement(): void; stat: sql.Statement };
+
+      const { query } = render(jq);
+
+      // Only the two selected columns are emitted, still alias-qualified
+      expect(query).toContain('select e.first_name as e_first_name, d.name as d_name from');
+      expect(query).not.toContain('e_email');
+      expect(query).not.toContain('d_id');
+    });
+
+    it('renders a chained 3-way join with real columns and a left-qualified ON clause', () => {
+      const jq = context.employees
+        .join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')))
+        .join(context.orders, (empDept, ord) => empDept.eq('id', ord.col('userId')));
+
+      const { query } = render(jq);
+
+      // FROM nests the inner join and joins orders; ON resolves the shared
+      // field `id` to the left/driving table (e.id), not the right (d.id).
+      expect(query).toContain('from ((employees as e inner join departments as d on e.department_id = d.id) inner join orders as o on e.id = o.user_id)');
+      // SELECT references the real qualified columns, not pseudo columns like "e_id as e_id"
+      expect(query).toContain('d.id as d_id');
+      expect(query).toContain('o.user_id as o_user_id');
+      expect(query).not.toContain('e_id as e_id');
+    });
+  });
 });
