@@ -601,6 +601,31 @@ describe('Query Building', () => {
       expect(query).not.toContain('d_id');
     });
 
+    it('preserves select() narrowing when another join() is chained afterward', () => {
+      const narrowed = context.employees
+        .join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')))
+        .select(['firstName', 'name']) as unknown as JoinQuerySet<Employee, { id: number; name: string }>;
+
+      const jq = narrowed.join(context.orders, (empDept, ord) => empDept.eq('id', ord.col('userId'))) as unknown as { prepareSelectStatement(): void; stat: sql.Statement };
+
+      const { query } = render(jq);
+
+      // The prior select() narrowed employees/departments down to firstName + name;
+      // that narrowing must survive chaining a further join(), not silently widen
+      // back out to every employees/departments column.
+      expect(query).toContain('e.first_name as e_first_name');
+      expect(query).toContain('d.name as d_name');
+      expect(query).not.toContain('e_email');
+      expect(query).not.toContain('e_last_name');
+      expect(query).not.toContain('e_created_at');
+      expect(query).not.toContain('e_department_id');
+      expect(query).not.toContain('d_id');
+      // orders was joined after the select() and was never itself narrowed,
+      // so its columns are still emitted in full.
+      expect(query).toContain('o.user_id as o_user_id');
+      expect(query).toContain('o.total_amount as o_total_amount');
+    });
+
     it('renders a chained 3-way join with real columns and a left-qualified ON clause', () => {
       const jq = context.employees
         .join(context.departments, (emp, dept) => emp.eq('departmentId', dept.col('id')))
