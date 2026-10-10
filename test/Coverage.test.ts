@@ -379,6 +379,17 @@ describe.skipIf(!dbAvailable)('Execution paths (live PostgreSQL)', () => {
       expect(db.employees.orderBy(() => [new sql.Expression()]).stat.orderBy).toHaveLength(0);
     });
 
+    // Regression: isValidExpression used to require exps.length > 0, which only compound
+    // expressions (eq/and/asc/...) satisfy. GroupExprBuilder.expr() returns a bare leaf reference
+    // (a `value` with no `exps`), so a plain `groupBy(e => [e.expr('col')])` - the obvious way to
+    // call it - was silently dropped, making groupBy() a no-op for the common case. A genuinely
+    // empty `new sql.Expression()` (no value, no exps) must still be dropped.
+    it('keeps a bare column expression (e.g. from GroupExprBuilder.expr) as a valid clause', () => {
+      const qs = db.employees.groupBy(e => [e.expr('lastName')]);
+      expect(qs.stat.groupBy).toHaveLength(1);
+      expect(qs.stat.groupBy[0].value).toBe('lastName');
+    });
+
     it('drops empty where/group/order expressions on a joined set', () => {
       const joined = db.employees.join(db.departments, (e, d) => e.eq('departmentId', d.col('id')));
       joined.groupBy(() => [new sql.Expression()]);
@@ -422,9 +433,10 @@ describe.skipIf(!dbAvailable)('Execution paths (live PostgreSQL)', () => {
     });
 
     it('groupBy delegates to a fresh QuerySet and records the clause', async () => {
-      // A bare column expression carries no sub-expressions, which the builder
-      // treats as empty; wrap it so the GROUP BY clause is actually recorded.
-      const qs = db.employees.groupBy(e => [new sql.Expression(null, Operator.And, e.expr('lastName'))]);
+      // e.expr() as GroupExprBuilder's own docs intend it to be called - a bare column reference,
+      // not wrapped in an extra operator. See "records a bare column expression" below for the
+      // regression this covers (isValidExpression used to silently drop this).
+      const qs = db.employees.groupBy(e => [e.expr('lastName')]);
       expect(qs.stat.groupBy.length).toBeGreaterThan(0);
     });
 

@@ -512,7 +512,7 @@ The primary interface for interacting with a database table.
 |---|---|
 | `insert(entity)` | Insert a new row |
 | `insertAndFetch(entity)` | Insert and return the saved entity |
-| `insertBulk(entities)` | Insert multiple rows |
+| `insertBulk(entities)` | Insert multiple rows with one multi-row `INSERT`; a column null in every row is omitted, otherwise a null uses `default` |
 | `update(entity, ...keys)` | Update specific columns |
 | `updateBulk(entities, ...keys)` | Update multiple rows |
 | `upsert(entity)` | Insert or update |

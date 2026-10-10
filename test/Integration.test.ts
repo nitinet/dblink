@@ -89,10 +89,7 @@ function newEmployee(overrides: Partial<Employee> = {}): Employee {
   return emp;
 }
 
-// Insert fixtures one-by-one. `insertBulk` cannot be used for seeding because
-// dblink-core concatenates the per-row parameterized statements with ';' and
-// dblink-pg's extended (prepared) protocol rejects multi-command queries — see
-// the "Bulk operations" block below, which pins that limitation explicitly.
+// Insert fixtures one-by-one.
 async function seedEmployees(db: TestDbContext, employees: Employee[]): Promise<void> {
   for (const emp of employees) await db.employees.insert(emp);
 }
@@ -274,9 +271,10 @@ describe.skipIf(!dbAvailable)('DBLink ORM Integration (live PostgreSQL)', () => 
   // These tests pin that limitation: if a future dblink-core/dblink-pg release
   // executes array statements individually, they will start passing and should
   // be rewritten to assert success.
-  describe('Bulk operations (known dblink-pg multi-command limitation)', () => {
-    it('insertBulk rejects for more than one row', async () => {
-      await expect(db.employees.insertBulk([newEmployee({ email: 'b1@example.com' }), newEmployee({ email: 'b2@example.com' })])).rejects.toThrow(/multiple commands/i);
+  describe('Bulk operations (deleteBulk has a known dblink-pg multi-command limitation)', () => {
+    it('insertBulk inserts many rows with one statement', async () => {
+      await db.employees.insertBulk([newEmployee({ email: 'b1@example.com' }), newEmployee({ email: 'b2@example.com' })]);
+      expect(await db.employees.count()).toBe(2);
     });
 
     it('deleteBulk rejects for more than one row', async () => {

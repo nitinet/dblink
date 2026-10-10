@@ -183,36 +183,48 @@ class TableSet<T extends object> extends IQuerySet<T> {
   }
 
   /**
-   * Insert Rows Bulk
+   * Insert Rows Bulk with a single multi-row INSERT (one round trip).
+   * A column that is null in every row is left out of the statement; otherwise a null in a row becomes `default`.
+   *
+   * Runs on the table's own context, so inside a transaction it joins that transaction.
+   * ponytail: single statement; Postgres caps bind params at 65535 (rows x columns) - chunk if a caller ever needs more.
    *
    * @async
    * @param {T[]} entities
    * @returns {Promise<void>}
    */
   async insertBulk(entities: T[]): Promise<void> {
-    // Cache fields lookup outside the loop
-    const fields = this.getAllFields();
+    if (!entities.length) return;
 
-    const stmts = entities.map(entity => {
-      const stat: sql.Statement = new sql.Statement(sql.types.Command.INSERT);
-      stat.collection.value = this.dbSet.tableName;
+    const fields = this.getAllFields().filter(field => entities.some(entity => Reflect.get(entity, field.fieldName) != null));
+    if (!fields.length) throw new Error('No column values to insert');
 
-      fields.forEach(field => {
-        const val = Reflect.get(entity, field.fieldName);
-        if (val == null) return;
-
-        const col = new sql.Collection();
-        col.value = field.colName;
-        stat.columns.push(col);
-
-        const expr = new sql.Expression('?');
-        expr.args.push(this.context.handler.serializeValue(val, field.dataType));
-        stat.values.push(expr);
-      });
-      return stat;
+    const stat: sql.Statement = new sql.Statement(sql.types.Command.INSERT);
+    stat.collection.value = this.dbSet.tableName;
+    fields.forEach(field => {
+      const col = new sql.Collection();
+      col.value = field.colName;
+      stat.columns.push(col);
     });
 
-    await this.context.runStatement(stmts);
+    const args: unknown[] = [];
+    const tuples = entities.map(entity =>
+      fields
+        .map(field => {
+          const val = Reflect.get(entity, field.fieldName);
+          if (val == null) return 'default';
+          args.push(this.context.handler.serializeValue(val, field.dataType));
+          return '?';
+        })
+        .join(', ')
+    );
+
+    // insertQuery wraps the single value expression in `values (...)`, so the row tuples join with `), (`.
+    const expr = new sql.Expression(tuples.join('), ('));
+    expr.args = args;
+    stat.values.push(expr);
+
+    await this.context.runStatement(stat);
   }
 
   /**

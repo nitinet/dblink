@@ -86,10 +86,12 @@ class JoinQuerySet<T extends object, U extends object> extends IQuerySet<T & U> 
   }
 
   /**
-   * Helper to validate if expression is valid and non-empty
+   * Helper to validate if expression is valid and non-empty. See the identical check in
+   * QuerySet.isValidExpression for why bare leaf expressions (a `value` with no `exps`, e.g. from
+   * GroupExprBuilder.expr()) must also count as valid, not just compound ones.
    */
   private isValidExpression(expr: sql.Expression | null): expr is sql.Expression {
-    return expr instanceof sql.Expression && expr.exps.length > 0;
+    return expr instanceof sql.Expression && (expr.exps.length > 0 || !!expr.value);
   }
 
   // Select Functions

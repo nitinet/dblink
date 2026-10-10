@@ -96,10 +96,17 @@ class QuerySet<T extends object> extends IQuerySet<T> {
   }
 
   /**
-   * Helper to validate if expression is valid and non-empty
+   * Helper to validate if expression is valid and non-empty.
+   *
+   * A valid expression is either a compound one (built from operators like `eq`/`and`/`asc`,
+   * which nest their operands under `exps`) or a bare leaf reference (a plain column expression
+   * like `GroupExprBuilder.expr()` returns, which carries its own `value` and no `exps`). Checking
+   * `exps.length > 0` alone rejects that second case, silently dropping any `groupBy`/`orderBy`
+   * clause built from an unwrapped column reference - `new sql.Expression()` (no value, no exps)
+   * is still correctly treated as empty.
    */
   private isValidExpression(expr: sql.Expression | null | undefined): expr is sql.Expression {
-    return expr instanceof sql.Expression && expr.exps.length > 0;
+    return expr instanceof sql.Expression && (expr.exps.length > 0 || !!expr.value);
   }
 
   // Select Functions
