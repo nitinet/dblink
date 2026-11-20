@@ -228,6 +228,22 @@ class TableSet<T extends object> extends IQuerySet<T> {
   }
 
   /**
+   * Where Expression matching ANY of the given primary keys (already serialized, in primary-field order):
+   * `pk in (?, ?)` for a single-column key, `(a = ? and b = ?) or (...)` for a composite one.
+   *
+   * @private
+   * @param {unknown[][]} keys
+   * @returns {sql.Expression}
+   */
+  private whereAnyKey(keys: unknown[][]): sql.Expression {
+    const matchKey = this.primaryFields.map(pri => `${pri.colName} = ?`).join(' and ');
+    const where =
+      this.primaryFields.length == 1 ? new sql.Expression(`${this.primaryFields[0].colName} in (${keys.map(() => '?').join(', ')})`) : new sql.Expression(keys.map(() => `(${matchKey})`).join(' or '));
+    keys.forEach(rowKeys => where.args.push(...rowKeys));
+    return where;
+  }
+
+  /**
    * Create Where Expression
    *
    * @private
@@ -285,7 +301,14 @@ class TableSet<T extends object> extends IQuerySet<T> {
   }
 
   /**
-   * Update Rows Bulk
+   * Update Rows Bulk - every entity's `updatedKeys` (matched by primary key) in ONE statement:
+   * `update t set c = case when <pk> then ? ... else c end where <pk> or <pk> ...`. Plain ANSI SQL, so every
+   * handler runs it and no raw SQL is needed in callers. The previous form joined one UPDATE per entity with `;`,
+   * which Postgres rejects for a parameterised query ("cannot insert multiple commands into a prepared statement").
+   * If an entity appears twice the last one wins, as it did when the updates ran in sequence. The `else` keeps the
+   * current value; it is also what lets Postgres type the bound values from the column.
+   * ponytail: single statement; Postgres caps bind params at 65535 (about rows x (keys x (columns + 1) + columns)) -
+   * chunk if a caller ever needs more.
    *
    * @async
    * @param {T[]} entities
@@ -293,28 +316,33 @@ class TableSet<T extends object> extends IQuerySet<T> {
    * @returns {Promise<void>}
    */
   async updateBulk(entities: T[], ...updatedKeys: (keyof T)[]): Promise<void> {
-    // Cache fields lookup outside the loop
+    if (!entities.length) return;
+    if (!this.primaryFields?.length) throw new Error('Primary Key fields not found');
+
     const fields = this.getUpdateFields(updatedKeys);
+    if (fields.length == 0) throw new Error('Update Fields Empty');
 
-    const stmts = entities.map(entity => {
-      const stat = new sql.Statement(sql.types.Command.UPDATE);
-      stat.collection.value = this.dbSet.tableName;
+    const handler = this.context.handler;
+    const rows = new Map<string, { keys: unknown[]; entity: T }>();
+    entities.forEach(entity => {
+      const keys = this.primaryFields.map(pri => handler.serializeValue(Reflect.get(entity, pri.fieldName), pri.dataType));
+      rows.set(JSON.stringify(keys), { keys, entity });
+    });
+    const batch = [...rows.values()];
 
-      fields.forEach(field => {
-        const c1 = new sql.Expression(field.colName);
-        const c2 = new sql.Expression('?');
-        const val = Reflect.get(entity, field.fieldName);
-        c2.args.push(this.context.handler.serializeValue(val, field.dataType));
+    const matchKey = this.primaryFields.map(pri => `${pri.colName} = ?`).join(' and ');
+    const stat = new sql.Statement(sql.types.Command.UPDATE);
+    stat.collection.value = this.dbSet.tableName;
 
-        const expr = new sql.Expression(null, sql.types.Operator.Equal, c1, c2);
-        stat.columns.push(expr);
-      });
-
-      stat.where = this.whereExpr(entity);
-      return stat;
+    fields.forEach(field => {
+      const expr = new sql.Expression(`${field.colName} = case ${batch.map(() => `when ${matchKey} then ?`).join(' ')} else ${field.colName} end`);
+      batch.forEach(({ keys, entity }) => expr.args.push(...keys, handler.serializeValue(Reflect.get(entity, field.fieldName), field.dataType)));
+      stat.columns.push(expr);
     });
 
-    await this.context.runStatement(stmts);
+    stat.where = this.whereAnyKey(batch.map(({ keys }) => keys));
+
+    await this.context.runStatement(stat);
   }
 
   /**
@@ -351,21 +379,24 @@ class TableSet<T extends object> extends IQuerySet<T> {
   }
 
   /**
-   * Delete Rows Bulk
+   * Delete Rows Bulk - every entity (matched by primary key) in ONE statement: `delete from t where <pk> or <pk> ...`.
+   * The previous form joined one DELETE per entity with `;`, which Postgres rejects for a parameterised query
+   * ("cannot insert multiple commands into a prepared statement") as soon as there is more than one row.
+   * ponytail: single statement; Postgres caps bind params at 65535 (rows x key columns) - chunk if a caller ever needs more.
    *
    * @async
    * @param {T[]} entities
    * @returns {Promise<void>}
    */
   async deleteBulk(entities: T[]): Promise<void> {
-    const stmts = entities.map(entity => {
-      const stat = new sql.Statement(sql.types.Command.DELETE);
-      stat.collection.value = this.dbSet.tableName;
+    if (!entities.length) return;
+    if (!this.primaryFields?.length) throw new Error('Primary Key fields not found');
 
-      stat.where = this.whereExpr(entity);
-      return stat;
-    });
-    await this.context.runStatement(stmts);
+    const stat = new sql.Statement(sql.types.Command.DELETE);
+    stat.collection.value = this.dbSet.tableName;
+    stat.where = this.whereAnyKey(entities.map(entity => this.primaryFields.map(pri => this.context.handler.serializeValue(Reflect.get(entity, pri.fieldName), pri.dataType))));
+
+    await this.context.runStatement(stat);
   }
 
   /**

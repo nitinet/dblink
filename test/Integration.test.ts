@@ -264,23 +264,19 @@ describe.skipIf(!dbAvailable)('DBLink ORM Integration (live PostgreSQL)', () => 
     });
   });
 
-  // The *Bulk helpers build one parameterized statement per row and hand the
-  // array to the handler, which dblink-core concatenates with ';'. PostgreSQL's
-  // extended/prepared protocol (used whenever bind parameters are present)
-  // forbids multiple commands in one query, so these currently fail for >1 row.
-  // These tests pin that limitation: if a future dblink-core/dblink-pg release
-  // executes array statements individually, they will start passing and should
-  // be rewritten to assert success.
-  describe('Bulk operations (deleteBulk has a known dblink-pg multi-command limitation)', () => {
+  // updateBulk/deleteBulk are one statement each (see TableSet), so they work with bind parameters on PostgreSQL.
+  describe('Bulk operations', () => {
     it('insertBulk inserts many rows with one statement', async () => {
       await db.employees.insertBulk([newEmployee({ email: 'b1@example.com' }), newEmployee({ email: 'b2@example.com' })]);
       expect(await db.employees.count()).toBe(2);
     });
 
-    it('deleteBulk rejects for more than one row', async () => {
+    it('deleteBulk deletes many rows with one statement and leaves the others', async () => {
       const a = await db.employees.insertAndFetch(newEmployee({ email: 'del1@example.com' }));
       const b = await db.employees.insertAndFetch(newEmployee({ email: 'del2@example.com' }));
-      await expect(db.employees.deleteBulk([a, b])).rejects.toThrow(/multiple commands/i);
+      await db.employees.insertAndFetch(newEmployee({ email: 'keep@example.com' }));
+      await db.employees.deleteBulk([a, b]);
+      expect((await db.employees.list()).map(e => e.email)).toEqual(['keep@example.com']);
     });
   });
 
